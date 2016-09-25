@@ -39,7 +39,10 @@ fn main() {
       let ref matches = matches.subcommand_matches(s).unwrap();
       match *s {
         "get" => {
-          let project = matches.value_of("project").unwrap().to_owned();
+          let project = match matches.value_of("project") {
+            Some(project) => project.to_owned(),
+            None => panic!("project not found"),
+          };
           ghqrs::command_get(project)
         }
         "list" => {

@@ -1,7 +1,9 @@
 extern crate walkdir;
 extern crate git2;
+extern crate regex;
+extern crate url;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 #[derive(Debug)]
@@ -11,8 +13,36 @@ struct Repository {
 }
 
 pub fn command_get(project: String) -> i32 {
-  // resolve to url
-  // clone repository
+  let (protocol, base_url, user, repo);
+
+  if url::Url::parse(&project).is_ok() {
+    let re = regex::Regex::new(r"([a-z]+)://([\w-\.]+)/([\w-.]+)/([\w-.]+)\.git").unwrap();
+    let caps = re.captures(&project).unwrap();
+    protocol = caps.at(1).unwrap().to_owned();
+    base_url = caps.at(2).unwrap().to_owned();
+    user = caps.at(3).unwrap().to_owned();
+    repo = caps.at(4).unwrap().to_owned();
+  } else {
+    protocol = "https".to_owned();
+    base_url = "github.com".to_owned();
+    let re = regex::Regex::new(r"([\w-.]+)/([\w-.]+)").unwrap();
+    if let Some(caps) = re.captures(&project) {
+      user = caps.at(1).unwrap().to_owned();
+      repo = caps.at(2).unwrap().to_owned();
+    } else {
+      user = project.clone();
+      repo = project.clone();
+    }
+  }
+  let url = url::Url::parse(&format!("{}://{}/{}/{}.git", protocol, base_url, user, repo)).unwrap();
+
+  let mut dest = PathBuf::from(&get_local_repos_roots()[0]);
+  dest.push(base_url);
+  dest.push(user);
+  dest.push(repo);
+
+  git_clone(url, dest.as_path());
+
   0
 }
 
@@ -31,11 +61,11 @@ pub fn command_list(exact: bool, fullpath: bool, unique: bool, query: Option<Str
 
   for repo in get_local_repositories(filter) {
     if fullpath {
-      let mut repo_path = std::path::PathBuf::from(repo.root);
+      let mut repo_path = PathBuf::from(repo.root);
       repo_path.push(repo.path);
       println!("{}", repo_path.display());
     } else if unique {
-      let repo_name = std::path::Path::new(&repo.path)
+      let repo_name = Path::new(&repo.path)
         .file_name()
         .unwrap()
         .to_str()
@@ -61,9 +91,9 @@ pub fn command_root(all: bool) -> i32 {
   0
 }
 
-fn git_clone(url: &str, dest: &str) {
+fn git_clone(url: url::Url, dest: &Path) {
   let output = std::process::Command::new("git")
-    .args(&["clone", url, dest])
+    .args(&["clone", url.as_str(), dest.to_str().unwrap()])
     .output()
     .expect("failed to clone repository");
   if !output.status.success() {
