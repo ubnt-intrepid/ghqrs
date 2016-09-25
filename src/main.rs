@@ -20,7 +20,8 @@ fn main() {
         .help("print full paths"))
       .arg(Arg::with_name("unique")
         .long("unique")
-        .help("Print unique subpaths")))
+        .help("Print unique subpaths"))
+      .arg(Arg::with_name("query")))
     .subcommand(SubCommand::with_name("root")
       .about("Show repositories's root")
       .arg(Arg::with_name("all")
@@ -36,7 +37,8 @@ fn main() {
           let exact = matches.is_present("exact");
           let fullpath = matches.is_present("fullpath");
           let unique = matches.is_present("unique");
-          ghqrs::command_list(exact, fullpath, unique)
+          let query = matches.value_of("query").map(|s| s.to_owned());
+          ghqrs::command_list(exact, fullpath, unique, query)
         }
         "root" => {
           let all = matches.is_present("all");

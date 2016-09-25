@@ -1,5 +1,38 @@
-pub fn command_list(exact: bool, fullpath: bool, unique: bool) -> i32 {
-  println!("list: Not implemented, {}, {}, {}", exact, fullpath, unique);
+
+struct Repository {
+  root: String,
+  path: String,
+}
+
+fn get_local_repositories(filter: Box<Fn(&str) -> bool>, unique: bool) -> Vec<Repository> {
+  Vec::new()
+}
+
+pub fn command_list(exact: bool, fullpath: bool, unique: bool, query: Option<String>) -> i32 {
+  let filter: Box<Fn(&str) -> bool> = {
+    if let Some(query) = query {
+      if exact {
+        Box::new(move |s: &str| s == query)
+      } else {
+        Box::new(move |s: &str| s.contains(&query))
+      }
+    } else {
+      Box::new(|_| true)
+    }
+  };
+
+  let repos = get_local_repositories(filter, unique);
+  for repo in repos {
+    if fullpath {
+      let mut repo_path = std::path::PathBuf::new();
+      repo_path.push(repo.root);
+      repo_path.push(repo.path);
+      println!("{}", repo_path.display());
+    } else {
+      println!("{}", repo.path);
+    }
+  }
+
   0
 }
 
