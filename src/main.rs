@@ -8,6 +8,9 @@ fn main() {
     .about("Remote management")
     .version("0.0.1")
     .author("Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>")
+    .subcommand(SubCommand::with_name("get")
+      .about("clone/sync")
+      .arg(Arg::with_name("project").help("repository name")))
     .subcommand(SubCommand::with_name("list")
       .about("List locally cloned repositories")
       .arg(Arg::with_name("exact")
@@ -34,11 +37,15 @@ fn main() {
     Some(ref s) => {
       let ref matches = matches.subcommand_matches(s).unwrap();
       match *s {
+        "get" => {
+          let project = matches.value_of("project").unwrap().to_owned();
+          ghqrs::command_get(project)
+        }
         "list" => {
           let exact = matches.is_present("exact");
           let fullpath = matches.is_present("fullpath");
           let unique = matches.is_present("unique");
-          let query = matches.value_of("query").map(|s| s.to_owned());
+          let query = matches.value_of("query").map(ToOwned::to_owned);
           ghqrs::command_list(exact, fullpath, unique, query)
         }
         "root" => {

@@ -68,6 +68,22 @@ pub fn command_list(exact: bool, fullpath: bool, unique: bool, query: Option<Str
   0
 }
 
+pub fn command_get(project: String) -> i32 {
+    // resolve to url
+    // clone repository
+    0
+}
+
+fn git_clone(url: &str, dest: &str) {
+  let output = std::process::Command::new("git")
+    .args(&["clone", url, dest])
+    .output()
+    .expect("failed to clone repository");
+  if !output.status.success() {
+    panic!("git clone failed");
+  }
+}
+
 fn git_config(key: &str) -> String {
   let output = std::process::Command::new("git")
     .args(&["config", "--path", "--null", "--get-all", key])
