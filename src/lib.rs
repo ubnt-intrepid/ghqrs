@@ -1,11 +1,41 @@
+extern crate walkdir;
 
+use std::path::PathBuf;
+use walkdir::WalkDir;
+
+#[derive(Debug)]
 struct Repository {
   root: String,
   path: String,
 }
 
 fn get_local_repositories(filter: Box<Fn(&str) -> bool>, unique: bool) -> Vec<Repository> {
-  Vec::new()
+  let mut dst = Vec::new();
+
+  let roots = get_local_repos_roots();
+  for root in roots {
+    for entry in WalkDir::new(&root).follow_links(true).into_iter().flat_map(|e| e.ok()) {
+      if entry.depth() == 3 {
+        let buf = PathBuf::from(format!("{}", entry.path().display()));
+        let entry = vec![".git", ".svn", ".hg", "_darcs"].into_iter().find(|&e| {
+          if !filter(format!("{}", buf.display()).as_str()) {
+            return false;
+          }
+          let mut buf = buf.clone();
+          buf.push(e);
+          buf.exists()
+        });
+        if entry.is_some() {
+          dst.push(Repository {
+            root: root.clone(),
+            path: format!("{}", buf.display()).replace(&format!("{}/", root), ""),
+          });
+        }
+      }
+    }
+  }
+
+  dst
 }
 
 pub fn command_list(exact: bool, fullpath: bool, unique: bool, query: Option<String>) -> i32 {
@@ -24,8 +54,7 @@ pub fn command_list(exact: bool, fullpath: bool, unique: bool, query: Option<Str
   let repos = get_local_repositories(filter, unique);
   for repo in repos {
     if fullpath {
-      let mut repo_path = std::path::PathBuf::new();
-      repo_path.push(repo.root);
+      let mut repo_path = std::path::PathBuf::from(repo.root);
       repo_path.push(repo.path);
       println!("{}", repo_path.display());
     } else {
@@ -41,7 +70,8 @@ fn git_config(key: &str) -> String {
     .args(&["config", "--path", "--null", "--get-all", key])
     .output()
     .expect("failed to execute git");
-  String::from_utf8(output.stdout).unwrap()
+  let len = output.stdout.len();
+  String::from_utf8(Vec::from(&output.stdout[0..len - 1])).unwrap()
 }
 
 fn get_local_repos_roots() -> Vec<String> {
