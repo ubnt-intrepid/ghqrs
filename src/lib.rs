@@ -14,21 +14,23 @@ fn get_local_repositories(filter: Box<Fn(&str) -> bool>, unique: bool) -> Vec<Re
 
   let roots = get_local_repos_roots();
   for root in roots {
-    for entry in WalkDir::new(&root).follow_links(true).into_iter().flat_map(|e| e.ok()) {
+    for entry in WalkDir::new(&root).follow_links(true).into_iter().filter_map(|e| e.ok()) {
+      let path = format!("{}", entry.path().display()).replace(&format!("{}/", root), "");
       if entry.depth() == 3 {
-        let buf = PathBuf::from(format!("{}", entry.path().display()));
+
         let entry = vec![".git", ".svn", ".hg", "_darcs"].into_iter().find(|&e| {
-          if !filter(format!("{}", buf.display()).as_str()) {
+          let mut buf = PathBuf::from(format!("{}", entry.path().display()));
+          if !filter(buf.file_name().unwrap().to_str().unwrap()) {
             return false;
           }
-          let mut buf = buf.clone();
           buf.push(e);
           buf.exists()
         });
+
         if entry.is_some() {
           dst.push(Repository {
             root: root.clone(),
-            path: format!("{}", buf.display()).replace(&format!("{}/", root), ""),
+            path: path,
           });
         }
       }
