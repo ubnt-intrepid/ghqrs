@@ -22,6 +22,7 @@ fn main() {
         .long("full-path")
         .help("print full paths"))
       .arg(Arg::with_name("unique")
+        .short("u")
         .long("unique")
         .help("Print unique subpaths"))
       .arg(Arg::with_name("query")))

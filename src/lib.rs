@@ -10,7 +10,77 @@ struct Repository {
   path: String,
 }
 
-fn get_local_repositories(filter: Box<Fn(&str) -> bool>, unique: bool) -> Vec<Repository> {
+pub fn command_get(project: String) -> i32 {
+  // resolve to url
+  // clone repository
+  0
+}
+
+pub fn command_list(exact: bool, fullpath: bool, unique: bool, query: Option<String>) -> i32 {
+  let filter: Box<Fn(&str) -> bool> = {
+    if let Some(query) = query {
+      if exact {
+        Box::new(move |s: &str| s == query)
+      } else {
+        Box::new(move |s: &str| s.contains(&query))
+      }
+    } else {
+      Box::new(|_| true)
+    }
+  };
+
+  for repo in get_local_repositories(filter) {
+    if fullpath {
+      let mut repo_path = std::path::PathBuf::from(repo.root);
+      repo_path.push(repo.path);
+      println!("{}", repo_path.display());
+    } else if unique {
+      let repo_name = std::path::Path::new(&repo.path)
+        .file_name()
+        .unwrap()
+        .to_str()
+        .unwrap();
+      println!("{}", repo_name);
+    } else {
+      println!("{}", repo.path);
+    }
+  }
+
+  0
+}
+
+pub fn command_root(all: bool) -> i32 {
+  let roots = get_local_repos_roots();
+  if all {
+    for root in roots {
+      println!("{}", root);
+    }
+  } else {
+    println!("{}", roots[0]);
+  }
+  0
+}
+
+fn git_clone(url: &str, dest: &str) {
+  let output = std::process::Command::new("git")
+    .args(&["clone", url, dest])
+    .output()
+    .expect("failed to clone repository");
+  if !output.status.success() {
+    panic!("git clone failed");
+  }
+}
+
+fn git_config(key: &str) -> String {
+  let output = std::process::Command::new("git")
+    .args(&["config", "--path", "--null", "--get-all", key])
+    .output()
+    .expect("failed to execute git");
+  let len = output.stdout.len();
+  String::from_utf8(Vec::from(&output.stdout[0..len - 1])).unwrap()
+}
+
+fn get_local_repositories(filter: Box<Fn(&str) -> bool>) -> Vec<Repository> {
   let mut dst = Vec::new();
 
   let roots = get_local_repos_roots();
@@ -41,57 +111,6 @@ fn get_local_repositories(filter: Box<Fn(&str) -> bool>, unique: bool) -> Vec<Re
   dst
 }
 
-pub fn command_list(exact: bool, fullpath: bool, unique: bool, query: Option<String>) -> i32 {
-  let filter: Box<Fn(&str) -> bool> = {
-    if let Some(query) = query {
-      if exact {
-        Box::new(move |s: &str| s == query)
-      } else {
-        Box::new(move |s: &str| s.contains(&query))
-      }
-    } else {
-      Box::new(|_| true)
-    }
-  };
-
-  let repos = get_local_repositories(filter, unique);
-  for repo in repos {
-    if fullpath {
-      let mut repo_path = std::path::PathBuf::from(repo.root);
-      repo_path.push(repo.path);
-      println!("{}", repo_path.display());
-    } else {
-      println!("{}", repo.path);
-    }
-  }
-
-  0
-}
-
-pub fn command_get(project: String) -> i32 {
-    // resolve to url
-    // clone repository
-    0
-}
-
-fn git_clone(url: &str, dest: &str) {
-  let output = std::process::Command::new("git")
-    .args(&["clone", url, dest])
-    .output()
-    .expect("failed to clone repository");
-  if !output.status.success() {
-    panic!("git clone failed");
-  }
-}
-
-fn git_config(key: &str) -> String {
-  let output = std::process::Command::new("git")
-    .args(&["config", "--path", "--null", "--get-all", key])
-    .output()
-    .expect("failed to execute git");
-  let len = output.stdout.len();
-  String::from_utf8(Vec::from(&output.stdout[0..len - 1])).unwrap()
-}
 
 fn get_local_repos_roots() -> Vec<String> {
   let mut local_repo_roots;
@@ -112,16 +131,4 @@ fn get_local_repos_roots() -> Vec<String> {
   assert!(local_repo_roots.len() >= 1);
 
   local_repo_roots
-}
-
-pub fn command_root(all: bool) -> i32 {
-  let roots = get_local_repos_roots();
-  if all {
-    for root in roots {
-      println!("{}", root);
-    }
-  } else {
-    println!("{}", roots[0]);
-  }
-  0
 }
