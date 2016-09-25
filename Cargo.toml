@@ -1,0 +1,14 @@
+[package]
+name = "ghqrs"
+version = "0.0.1"
+authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "ghqrs"
+path = "src/main.rs"
+
+[dependencies]
+clap = "*"
