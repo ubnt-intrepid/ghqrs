@@ -1,4 +1,5 @@
 extern crate walkdir;
+extern crate git2;
 
 use std::path::PathBuf;
 use walkdir::WalkDir;
