@@ -25,6 +25,7 @@ fn main() {
     .subcommand(SubCommand::with_name("root")
       .about("Show repositories's root")
       .arg(Arg::with_name("all")
+        .short("a")
         .long("all")
         .help("Show all roots")))
     .get_matches();
