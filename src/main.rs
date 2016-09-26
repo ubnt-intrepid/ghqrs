@@ -1,13 +1,15 @@
 extern crate ghqrs;
 extern crate clap;
 
-use clap::{Arg, App, SubCommand};
+use clap::{Arg, App, AppSettings, SubCommand};
 
 fn main() {
   let matches = App::new("ghqrs")
-    .about("Remote management")
-    .version("0.0.1")
+    .about("Manages cloned repositories from Git hostings")
+    .version(env!("CARGO_PKG_VERSION"))
     .author("Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>")
+    .setting(AppSettings::VersionlessSubcommands)
+    .setting(AppSettings::SubcommandRequiredElseHelp)
     .subcommand(SubCommand::with_name("get")
       .about("Clone or sync with remote repository")
       .arg(Arg::with_name("project")
@@ -43,31 +45,30 @@ fn main() {
         .help("Show all roots")))
     .get_matches();
 
-  let exitcode = match matches.subcommand_name() {
-    Some(ref s) => {
-      let ref matches = matches.subcommand_matches(s).unwrap();
-      match *s {
-        "get" => {
-          let projects = matches.values_of("project").unwrap().map(ToOwned::to_owned).collect();
-          let skip_pull = matches.is_present("skip-pull");
-          let shallow = matches.is_present("shallow");
-          ghqrs::command_get(projects, skip_pull, shallow)
-        }
-        "list" => {
-          let exact = matches.is_present("exact");
-          let fullpath = matches.is_present("fullpath");
-          let unique = matches.is_present("unique");
-          let query = matches.value_of("query").map(ToOwned::to_owned);
-          ghqrs::command_list(exact, fullpath, unique, query)
-        }
-        "root" => {
-          let all = matches.is_present("all");
-          ghqrs::command_root(all)
-        }
-        _ => panic!("invalid subcommand: {}", s),
+  let exitcode = if let Some(ref s) = matches.subcommand_name() {
+    let ref matches = matches.subcommand_matches(s).unwrap();
+    match *s {
+      "get" => {
+        let projects = matches.values_of("project").unwrap().map(ToOwned::to_owned).collect();
+        let skip_pull = matches.is_present("skip-pull");
+        let shallow = matches.is_present("shallow");
+        ghqrs::command_get(projects, skip_pull, shallow)
       }
+      "list" => {
+        let exact = matches.is_present("exact");
+        let fullpath = matches.is_present("fullpath");
+        let unique = matches.is_present("unique");
+        let query = matches.value_of("query").map(ToOwned::to_owned);
+        ghqrs::command_list(exact, fullpath, unique, query)
+      }
+      "root" => {
+        let all = matches.is_present("all");
+        ghqrs::command_root(all)
+      }
+      _ => unreachable!(),
     }
-    None => panic!("Invalid subcommand"),
+  } else {
+    unreachable!()
   };
   std::process::exit(exitcode);
 }
