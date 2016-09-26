@@ -1,5 +1,4 @@
 extern crate walkdir;
-extern crate git2;
 extern crate regex;
 extern crate url;
 

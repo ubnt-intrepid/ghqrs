@@ -1,6 +1,6 @@
 [package]
 name = "ghqrs"
-version = "0.0.1"
+version = "0.1.0"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 
 build = "build.rs"
@@ -13,11 +13,10 @@ name = "ghqrs"
 path = "src/main.rs"
 
 [build-dependencies]
-clap = "*"
+clap = "^2.13.0"
 
 [dependencies]
-clap = "*"
-walkdir = "*"
-git2 = "*"
-regex = "*"
-url = "*"
+clap = "^2.13.0"
+walkdir = "^0.1.8"
+regex = "^0.1.77"
+url = "^1.2.0"
