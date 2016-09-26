@@ -1,0 +1,44 @@
+language: rust
+sudo: required
+dist: trusty
+
+env:
+  - TARGET=ghqrs
+
+matrix:
+  include:
+  - os: linux
+    env: TOOLCHAIN=stable  HOST=x86_64-unknown-linux-gnu
+  - os: osx
+    env: TOOLCHAIN=stable  HOST=x86_64-apple-darwin
+
+before_install:
+  - which rustup || echo
+  - which cargo || echo
+
+install:
+  - curl -sSLf sh.rustup.rs | sh -s -- -y --default-toolchain="$TOOLCHAIN" --default-host="$HOST"
+    --no-modify-path --verbose
+  - export PATH="$HOME/.cargo/bin:$PATH"
+  - rustc -V
+  - cargo -V
+
+script:
+  - cargo build --verbose
+  - cargo test --verbose
+
+before_deploy:
+  - cargo build --release
+  - cp target/release/$TARGET $TARGET-$HOST
+
+deploy:
+  provider: releases
+  api_key:
+    secure: eodGL/JnY6BuiG6LSTazLI34Mt/5H4IeaJ8ATLUK3F4eBdX2I+QzJY0TyH/JyLbKbnUXG87M3utjw+SxaM1owXcIu2lzS3QciynjQy8WnmBtaYg9ILaOFFkOPDnVY9q5EU0ua/1dltCxfw37HYDocK/dtVMb9g/7c/Htwbfp8jxQNs/TyWIr8BM/bpcXewEkFl7goOiYLsx5rGoHkMUZzGI21wxZn4LrL5Q9BZHuPamoJGmlyE6qSClp/AZlCntkAluM0YqVfthg6QEZM7wEt6CzCl1bujrukTCFJJrEhG4qyeWOxO/v4DZPRe/Qw1L0suvTS2G5gxAWZpomCDrA6BkWq4d3VSQkqKav6+lRDfpf8uXSJSP9kxlldyxSzMeQBLt5BhQ6OyzDuce9ZCwnosWt8mfhH/PdUxdDqgR6nudS18SSixaLlAJMw5T5FD6RLWzEUtjG77V6PJD4uFW5G59iEYRumudMwQiUZrd7OWS5JuvfZ8kxQZLuR3ZHqV4Pkf3d1E5e9kht8Vyq6PhCnEzyKhEa942zv+dTGt87aV+hkqhuAGXpyKSCUF58kfLEI74jXOOlwQV72267JL6vz7Tg7ObshntVJZuKb9fEJIzQBbdjKZx55tiw8h8RPB33/vPaIs0nB105yjH3ZL6CzINXsJey45IcWy+mPTyesws=
+  file: $TARGET-$HOST
+  overwrite: true
+  skip_cleanup: true
+  on:
+    repo: ys-nuem/ghqrs
+    all_branches: true
+    tags: true

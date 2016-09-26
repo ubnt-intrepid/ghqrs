@@ -1,0 +1,38 @@
+version: 0.1.0.{build}
+
+branches:
+  only:
+  - master
+
+environment:
+  TARGET: ghqrs
+  TOOLCHAIN: stable
+  HOST: x86_64-pc-windows-msvc
+
+install:
+  - ps: Start-FileDownload 'https://static.rust-lang.org/rustup/dist/i686-pc-windows-msvc/rustup-init.exe'
+  - rustup-init.exe --no-modify-path --default-toolchain=%TOOLCHAIN% --default-host=%HOST% -y --verbose
+  - SET PATH=%PATH%;%USERPROFILE%\.cargo\bin
+  - rustc -V
+  - cargo -V
+
+build_script:
+  - cargo build --release --verbose
+  - copy target\release\%TARGET%.exe .\%TARGET%-%HOST%.exe
+
+test_script:
+  - cargo test --release --verbose
+
+artifacts:
+  - path: $(TARGET)-$(HOST).exe
+
+deploy:
+  provider: GitHub
+  draft: false
+  prerelease: false
+  force_update: true
+  auth_token:
+    secure: ftIAul7ND8K6dXsWwM44ybNnct1rm+OnbLd4x0WH0Me5Bl981VfFRcsXxhtrRUNO
+  on:
+    branch: master
+    appveyor_repo_tag: true
