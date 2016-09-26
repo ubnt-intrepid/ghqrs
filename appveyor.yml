@@ -32,7 +32,7 @@ deploy:
   prerelease: false
   force_update: true
   auth_token:
-    secure: ftIAul7ND8K6dXsWwM44ybNnct1rm+OnbLd4x0WH0Me5Bl981VfFRcsXxhtrRUNO
+    secure: $(GITHUB_TOKEN)
   on:
     branch: master
     appveyor_repo_tag: true
