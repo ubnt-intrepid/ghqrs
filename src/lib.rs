@@ -96,7 +96,7 @@ pub fn command_root(all: bool) -> i32 {
 fn git_clone_or_pull(url: url::Url, dest: &Path, skip_pull: bool, shallow: bool) {
   if dest.exists() {
     if !skip_pull {
-      git_pull(url, dest);
+      git_pull(dest);
     }
   } else {
     git_clone(url, dest, shallow);
@@ -125,17 +125,39 @@ fn git_clone(url: url::Url, dest: &Path, shallow: bool) {
   }
 }
 
+struct ScopeExit<F: FnMut()> {
+  caller: F,
+}
+
+impl<F: FnMut()> ScopeExit<F> {
+  fn new(c: F) -> ScopeExit<F> {
+    ScopeExit { caller: c }
+  }
+}
+
+impl<F: FnMut()> Drop for ScopeExit<F> {
+  fn drop(&mut self) {
+    (self.caller)();
+  }
+}
+
 #[allow(unreachable_code)]
-fn git_pull(url: url::Url, dest: &Path) {
-  println!("pull: {:?} -> {:?}", url, dest);
+fn git_pull(dest: &Path) {
+  println!("pull: {:?}", dest);
   return;
 
+  let curr_dir = std::env::current_dir().unwrap().to_str().unwrap().to_owned();
+  std::env::set_current_dir(dest).unwrap();
+  ScopeExit::new(|| {
+    std::env::set_current_dir(curr_dir.clone()).unwrap();
+  });
+
   let output = Command::new("git")
-    .args(&["clone", url.as_str(), dest.to_str().unwrap()])
+    .args(&["pull"])
     .output()
     .expect("failed to clone repository");
   if !output.status.success() {
-    panic!("git clone failed");
+    panic!("git pull failed");
   }
 }
 
