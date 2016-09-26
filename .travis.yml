@@ -2,15 +2,12 @@ language: rust
 sudo: required
 dist: trusty
 
-env:
-  - TARGET=ghqrs
-
 matrix:
   include:
   - os: linux
-    env: TOOLCHAIN=stable  HOST=x86_64-unknown-linux-gnu
+    env: TARGET=ghqrs  TOOLCHAIN=stable  HOST=x86_64-unknown-linux-gnu
   - os: osx
-    env: TOOLCHAIN=stable  HOST=x86_64-apple-darwin
+    env: TARGET=ghqrs  TOOLCHAIN=stable  HOST=x86_64-apple-darwin
 
 before_install:
   - which rustup || echo
