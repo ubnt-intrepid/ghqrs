@@ -3,6 +3,7 @@ extern crate git2;
 extern crate regex;
 extern crate url;
 
+use std::process::Command;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
@@ -12,7 +13,7 @@ struct Repository {
   path: String,
 }
 
-pub fn command_get(projects: Vec<String>) -> i32 {
+pub fn command_get(projects: Vec<String>, skip_pull: bool, shallow: bool) -> i32 {
   for project in projects {
     let (protocol, base_url, user, repo);
     if url::Url::parse(&project).is_ok() {
@@ -42,7 +43,7 @@ pub fn command_get(projects: Vec<String>) -> i32 {
     dest.push(user);
     dest.push(repo);
 
-    git_clone(url, dest.as_path());
+    git_clone_or_pull(url, dest.as_path(), skip_pull, shallow);
   }
   0
 }
@@ -92,20 +93,54 @@ pub fn command_root(all: bool) -> i32 {
   0
 }
 
-fn git_clone(url: url::Url, dest: &Path) {
-  println!("clone: {:?} -> {:?}", url, dest);
+fn git_clone_or_pull(url: url::Url, dest: &Path, skip_pull: bool, shallow: bool) {
+  if dest.exists() {
+    if !skip_pull {
+      git_pull(url, dest);
+    }
+  } else {
+    git_clone(url, dest, shallow);
+  }
+}
 
-  // let output = std::process::Command::new("git")
-  //   .args(&["clone", url.as_str(), dest.to_str().unwrap()])
-  //   .output()
-  //   .expect("failed to clone repository");
-  // if !output.status.success() {
-  //   panic!("git clone failed");
-  // }
+#[allow(unreachable_code)]
+fn git_clone(url: url::Url, dest: &Path, shallow: bool) {
+  println!("clone: {:?} -> {:?} ({})",
+           url,
+           dest,
+           if shallow { "Shallow" } else { "" });
+  return;
+
+  let mut args = vec!["clone", url.as_str(), dest.to_str().unwrap()];
+  if shallow {
+    args.extend(&["--depth", "1"]);
+  }
+
+  let output = Command::new("git")
+    .args(&args[..])
+    .output()
+    .expect("failed to clone repository");
+  if !output.status.success() {
+    panic!("git clone failed");
+  }
+}
+
+#[allow(unreachable_code)]
+fn git_pull(url: url::Url, dest: &Path) {
+  println!("pull: {:?} -> {:?}", url, dest);
+  return;
+
+  let output = Command::new("git")
+    .args(&["clone", url.as_str(), dest.to_str().unwrap()])
+    .output()
+    .expect("failed to clone repository");
+  if !output.status.success() {
+    panic!("git clone failed");
+  }
 }
 
 fn git_config(key: &str) -> String {
-  let output = std::process::Command::new("git")
+  let output = Command::new("git")
     .args(&["config", "--path", "--null", "--get-all", key])
     .output()
     .expect("failed to execute git");
