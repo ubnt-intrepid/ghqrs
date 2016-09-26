@@ -9,8 +9,11 @@ fn main() {
     .version("0.0.1")
     .author("Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>")
     .subcommand(SubCommand::with_name("get")
-      .about("clone/sync")
-      .arg(Arg::with_name("project").help("repository name")))
+      .about("Clone repositories from remote(s)")
+      .arg(Arg::with_name("project")
+        .multiple(true)
+        .required(true)
+        .help("repository name or URL")))
     .subcommand(SubCommand::with_name("list")
       .about("List locally cloned repositories")
       .arg(Arg::with_name("exact")
@@ -39,11 +42,8 @@ fn main() {
       let ref matches = matches.subcommand_matches(s).unwrap();
       match *s {
         "get" => {
-          let project = match matches.value_of("project") {
-            Some(project) => project.to_owned(),
-            None => panic!("project not found"),
-          };
-          ghqrs::command_get(project)
+          let projects = matches.values_of("project").unwrap().map(ToOwned::to_owned).collect();
+          ghqrs::command_get(projects)
         }
         "list" => {
           let exact = matches.is_present("exact");

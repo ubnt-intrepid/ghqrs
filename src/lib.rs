@@ -12,37 +12,38 @@ struct Repository {
   path: String,
 }
 
-pub fn command_get(project: String) -> i32 {
-  let (protocol, base_url, user, repo);
-
-  if url::Url::parse(&project).is_ok() {
-    let re = regex::Regex::new(r"([a-z]+)://([\w-\.]+)/([\w-.]+)/([\w-.]+)\.git").unwrap();
-    let caps = re.captures(&project).unwrap();
-    protocol = caps.at(1).unwrap().to_owned();
-    base_url = caps.at(2).unwrap().to_owned();
-    user = caps.at(3).unwrap().to_owned();
-    repo = caps.at(4).unwrap().to_owned();
-  } else {
-    protocol = "https".to_owned();
-    base_url = "github.com".to_owned();
-    let re = regex::Regex::new(r"([\w-.]+)/([\w-.]+)").unwrap();
-    if let Some(caps) = re.captures(&project) {
-      user = caps.at(1).unwrap().to_owned();
-      repo = caps.at(2).unwrap().to_owned();
+pub fn command_get(projects: Vec<String>) -> i32 {
+  for project in projects {
+    let (protocol, base_url, user, repo);
+    if url::Url::parse(&project).is_ok() {
+      let re = regex::Regex::new(r"([a-z]+)://([\w-\.]+)/([\w-.]+)/([\w-.]+)\.git").unwrap();
+      let caps = re.captures(&project).unwrap();
+      protocol = caps.at(1).unwrap().to_owned();
+      base_url = caps.at(2).unwrap().to_owned();
+      user = caps.at(3).unwrap().to_owned();
+      repo = caps.at(4).unwrap().to_owned();
     } else {
-      user = project.clone();
-      repo = project.clone();
+      protocol = "https".to_owned();
+      base_url = "github.com".to_owned();
+      let re = regex::Regex::new(r"([\w-.]+)/([\w-.]+)").unwrap();
+      if let Some(caps) = re.captures(&project) {
+        user = caps.at(1).unwrap().to_owned();
+        repo = caps.at(2).unwrap().to_owned();
+      } else {
+        user = project.clone();
+        repo = project.clone();
+      }
     }
+    let url = url::Url::parse(&format!("{}://{}/{}/{}.git", protocol, base_url, user, repo))
+      .unwrap();
+
+    let mut dest = PathBuf::from(&get_local_repos_roots()[0]);
+    dest.push(base_url);
+    dest.push(user);
+    dest.push(repo);
+
+    git_clone(url, dest.as_path());
   }
-  let url = url::Url::parse(&format!("{}://{}/{}/{}.git", protocol, base_url, user, repo)).unwrap();
-
-  let mut dest = PathBuf::from(&get_local_repos_roots()[0]);
-  dest.push(base_url);
-  dest.push(user);
-  dest.push(repo);
-
-  git_clone(url, dest.as_path());
-
   0
 }
 
@@ -92,13 +93,15 @@ pub fn command_root(all: bool) -> i32 {
 }
 
 fn git_clone(url: url::Url, dest: &Path) {
-  let output = std::process::Command::new("git")
-    .args(&["clone", url.as_str(), dest.to_str().unwrap()])
-    .output()
-    .expect("failed to clone repository");
-  if !output.status.success() {
-    panic!("git clone failed");
-  }
+  println!("clone: {:?} -> {:?}", url, dest);
+
+  // let output = std::process::Command::new("git")
+  //   .args(&["clone", url.as_str(), dest.to_str().unwrap()])
+  //   .output()
+  //   .expect("failed to clone repository");
+  // if !output.status.success() {
+  //   panic!("git clone failed");
+  // }
 }
 
 fn git_config(key: &str) -> String {
