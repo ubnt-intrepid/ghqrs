@@ -3,12 +3,17 @@ name = "ghqrs"
 version = "0.0.1"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 
+build = "build.rs"
+
 [lib]
 path = "src/lib.rs"
 
 [[bin]]
 name = "ghqrs"
 path = "src/main.rs"
+
+[build-dependencies]
+clap = "*"
 
 [dependencies]
 clap = "*"
