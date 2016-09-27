@@ -22,7 +22,7 @@ install:
 
 script:
   - cargo build --verbose
-  - cargo test --verbose
+  - RUST_TEST_THREADS=1 cargo test --verbose
 
 before_deploy:
   - cargo build --release

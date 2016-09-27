@@ -17,10 +17,11 @@ install:
   - cargo -V
 
 build_script:
-  - cargo build --release --verbose
+  - cargo build --release
   - copy target\release\%TARGET%.exe .\%TARGET%-%HOST%.exe
 
 test_script:
+  - set RUST_TEST_THREADS=1
   - cargo test --release --verbose
 
 artifacts:

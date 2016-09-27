@@ -229,13 +229,9 @@ fn parse_token(project: String, root: Option<&str>) -> (String, String, String, 
 
         let root = root.map(ToOwned::to_owned)
           .unwrap_or(get_local_repos_roots().into_iter().nth(0).unwrap());
-        println!("debug: root={:?}", root);
 
         let path = std::fs::canonicalize(&buf)
-          .unwrap();
-        println!("debug: path={:?}", path);
-
-        let path = path
+          .unwrap()
           .to_str()
           .unwrap()
           .trim_left_matches(&format!("{}{}", root, std::path::MAIN_SEPARATOR))
@@ -268,7 +264,6 @@ mod test_parse_token {
   extern crate tempdir;
   use super::parse_token;
   use std;
-  use super::ScopeExit;
 
   #[test]
   fn user_project() {
@@ -312,16 +307,11 @@ mod test_parse_token {
     let mut wd = tmp_dir.path().to_path_buf();
     wd.push("github.com");
     wd.push("hoge");
-
+    wd.push("fuga");
     std::fs::create_dir_all(wd.to_str().unwrap()).unwrap();
 
-    let cwd = std::env::current_dir().unwrap().to_str().unwrap().to_owned();
+    wd.pop();
     std::env::set_current_dir(wd.as_path()).unwrap();
-    let scope1 = ScopeExit::new(|| {
-      std::env::set_current_dir(cwd.clone()).unwrap();
-    });
-
-    std::fs::create_dir("fuga").unwrap();
 
     let input = "./fuga";
     let output = parse_token(input.to_owned(), tmp_dir.path().to_str());
@@ -337,14 +327,9 @@ mod test_parse_token {
     wd.push("github.com");
     wd.push("hoge");
     wd.push("fuga");
-
     std::fs::create_dir_all(wd.to_str().unwrap()).unwrap();
 
-    let cwd = std::env::current_dir().unwrap().to_str().unwrap().to_owned();
     std::env::set_current_dir(wd.as_path()).unwrap();
-    let scope1 = ScopeExit::new(|| {
-      std::env::set_current_dir(cwd.clone()).unwrap();
-    });
 
     let input = "../fuga";
     let output = parse_token(input.to_owned(), tmp_dir.path().to_str());
