@@ -9,23 +9,17 @@ matrix:
   - os: osx
     env: TARGET=ghqrs  TOOLCHAIN=stable  HOST=x86_64-apple-darwin
 
-before_install:
-  - which rustup || echo
-  - which cargo || echo
-
 install:
-  - curl -sSLf sh.rustup.rs | sh -s -- -y --default-toolchain="$TOOLCHAIN" --default-host="$HOST"
-    --no-modify-path --verbose
+  - curl -sSLf sh.rustup.rs | sh -s -- -y --default-toolchain="$TOOLCHAIN" --default-host="$HOST" --no-modify-path --verbose
   - export PATH="$HOME/.cargo/bin:$PATH"
   - rustc -V
   - cargo -V
 
 script:
-  - cargo build --verbose
-  - RUST_TEST_THREADS=1 cargo test --verbose
+  - cargo build --release
+  - cargo test --release
 
 before_deploy:
-  - cargo build --release
   - cp target/release/$TARGET $TARGET-$HOST
 
 deploy:
