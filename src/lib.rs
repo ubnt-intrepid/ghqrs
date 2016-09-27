@@ -14,7 +14,7 @@ struct Repository {
 
 pub fn command_get(projects: Vec<String>, skip_pull: bool, shallow: bool) -> i32 {
   for project in projects {
-    let (protocol, base_url, user, repo) = parse_token(project, None);
+    let (protocol, base_url, user, repo) = parse_token(project);
     let url = url::Url::parse(&format!("{}://{}/{}/{}.git", protocol, base_url, user, repo))
       .unwrap();
 
@@ -128,7 +128,7 @@ fn git_pull(dest: &Path) {
 
   let curr_dir = std::env::current_dir().unwrap().to_str().unwrap().to_owned();
   std::env::set_current_dir(dest).unwrap();
-  let scope1 = ScopeExit::new(|| {
+  ScopeExit::new(|| {
     std::env::set_current_dir(curr_dir.clone()).unwrap();
   });
 
@@ -203,7 +203,7 @@ fn get_local_repos_roots() -> Vec<String> {
   local_repo_roots
 }
 
-fn parse_token(project: String, root: Option<&str>) -> (String, String, String, String) {
+fn parse_token(project: String) -> (String, String, String, String) {
   let (protocol, base_url, user, repo): (String, String, String, String);
   match url::Url::parse(&project) {
     Ok(url) => {
@@ -216,42 +216,19 @@ fn parse_token(project: String, root: Option<&str>) -> (String, String, String, 
     }
     Err(_) => {
       protocol = "https".to_owned();
-      let paths: Vec<String> =
-        project.split(std::path::MAIN_SEPARATOR).map(ToOwned::to_owned).collect();
-      if paths.len() > 1 && (paths[0] == "." || paths[0] == "..") {
-        let mut buf = std::env::current_dir().unwrap().to_path_buf();
-        if paths[0] == ".." {
-          buf.pop();
-        }
-        for path in &paths[1..] {
-          buf.push(path);
-        }
-
-        let root = root.map(ToOwned::to_owned)
-          .unwrap_or(get_local_repos_roots().into_iter().nth(0).unwrap());
-
-        let path = std::fs::canonicalize(&buf)
-          .unwrap()
-          .to_str()
-          .unwrap()
-          .trim_left_matches(&format!("{}{}", root, std::path::MAIN_SEPARATOR))
-          .to_owned();
-
-        return parse_token(path, None);
+      let paths: Vec<String> = project.split("/").map(ToOwned::to_owned).collect();
+      if paths.len() == 3 {
+        base_url = paths[0].clone();
+        user = paths[1].clone();
+        repo = paths[2].clone();
+      } else if paths.len() == 2 {
+        base_url = "github.com".to_owned();
+        user = paths[0].clone();
+        repo = paths[1].clone();
       } else {
-        if paths.len() == 3 {
-          base_url = paths[0].clone();
-          user = paths[1].clone();
-          repo = paths[2].clone();
-        } else if paths.len() == 2 {
-          base_url = "github.com".to_owned();
-          user = paths[0].clone();
-          repo = paths[1].clone();
-        } else {
-          base_url = "github.com".to_owned();
-          user = project.clone();
-          repo = project.clone();
-        }
+        base_url = "github.com".to_owned();
+        user = project.clone();
+        repo = project.clone();
       }
     }
   };
@@ -261,14 +238,12 @@ fn parse_token(project: String, root: Option<&str>) -> (String, String, String, 
 
 #[cfg(test)]
 mod test_parse_token {
-  extern crate tempdir;
   use super::parse_token;
-  use std;
 
   #[test]
   fn user_project() {
     let input = "hoge/fuga";
-    let output = parse_token(input.to_owned(), None);
+    let output = parse_token(input.to_owned());
     assert_eq!(output,
                ("https".to_owned(), "github.com".to_owned(), "hoge".to_owned(), "fuga".to_owned()));
   }
@@ -276,7 +251,7 @@ mod test_parse_token {
   #[test]
   fn domain_user_project() {
     let input = "github.com/hoge/fuga";
-    let output = parse_token(input.to_owned(), None);
+    let output = parse_token(input.to_owned());
     assert_eq!(output,
                ("https".to_owned(), "github.com".to_owned(), "hoge".to_owned(), "fuga".to_owned()));
   }
@@ -284,7 +259,7 @@ mod test_parse_token {
   #[test]
   fn only_project_name() {
     let input = "fuga";
-    let output = parse_token(input.to_owned(), None);
+    let output = parse_token(input.to_owned());
     assert_eq!(output,
                ("https".to_owned(), "github.com".to_owned(), "fuga".to_owned(), "fuga".to_owned()));
   }
@@ -292,48 +267,11 @@ mod test_parse_token {
   #[test]
   fn repository_url() {
     let input = "https://gitlab.com/funga-/pecopeco.git";
-    let output = parse_token(input.to_owned(), None);
+    let output = parse_token(input.to_owned());
     assert_eq!(output,
                ("https".to_owned(),
                 "gitlab.com".to_owned(),
                 "funga-".to_owned(),
                 "pecopeco".to_owned()));
-  }
-
-  #[test]
-  fn relative_path_1() {
-    let tmp_dir = tempdir::TempDir::new("test1").unwrap();
-
-    let mut wd = tmp_dir.path().to_path_buf();
-    wd.push("github.com");
-    wd.push("hoge");
-    wd.push("fuga");
-    std::fs::create_dir_all(wd.to_str().unwrap()).unwrap();
-
-    wd.pop();
-    std::env::set_current_dir(wd.as_path()).unwrap();
-
-    let input = "./fuga";
-    let output = parse_token(input.to_owned(), tmp_dir.path().to_str());
-    assert_eq!(output,
-               ("https".to_owned(), "github.com".to_owned(), "hoge".to_owned(), "fuga".to_owned()));
-  }
-
-  #[test]
-  fn relative_path_2() {
-    let tmp_dir = tempdir::TempDir::new("test2").unwrap();
-
-    let mut wd = tmp_dir.path().to_path_buf();
-    wd.push("github.com");
-    wd.push("hoge");
-    wd.push("fuga");
-    std::fs::create_dir_all(wd.to_str().unwrap()).unwrap();
-
-    std::env::set_current_dir(wd.as_path()).unwrap();
-
-    let input = "../fuga";
-    let output = parse_token(input.to_owned(), tmp_dir.path().to_str());
-    assert_eq!(output,
-               ("https".to_owned(), "github.com".to_owned(), "hoge".to_owned(), "fuga".to_owned()));
   }
 }

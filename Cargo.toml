@@ -16,9 +16,6 @@ path = "src/main.rs"
 [build-dependencies]
 clap = "^2.13.0"
 
-[dev-dependencies]
-tempdir = "^0.3.5"
-
 [dependencies]
 clap = "^2.13.0"
 walkdir = "^0.1.8"
