@@ -1,12 +1,16 @@
 use clap::{Arg, App, AppSettings, SubCommand};
 
-pub fn build_cli() -> App<'static, 'static> {
-  App::new("ghqrs")
-    .about("Manages cloned repositories from Git hostings")
+fn build_cli_base() -> App<'static, 'static> {
+  App::new(env!("CARGO_PKG_NAME"))
+    .about(env!("CARGO_PKG_DESCRIPTION"))
     .version(env!("CARGO_PKG_VERSION"))
-    .author("Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>")
+    .author(env!("CARGO_PKG_AUTHORS"))
     .setting(AppSettings::VersionlessSubcommands)
     .setting(AppSettings::SubcommandRequiredElseHelp)
+}
+
+pub fn build_cli() -> App<'static, 'static> {
+  build_cli_base()
     .subcommand(SubCommand::with_name("get")
       .about("Clone or sync with remote repository")
       .arg(Arg::with_name("project")
