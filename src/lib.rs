@@ -2,9 +2,11 @@ extern crate walkdir;
 extern crate regex;
 extern crate url;
 
-use std::process::Command;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
+
+mod git;
+mod util;
 
 #[derive(Debug)]
 struct Repository {
@@ -23,7 +25,7 @@ pub fn command_get(projects: Vec<String>, skip_pull: bool, shallow: bool) -> i32
     dest.push(user);
     dest.push(repo);
 
-    git_clone_or_pull(url, dest.as_path(), skip_pull, shallow);
+    git::clone_or_pull(url, dest.as_path(), skip_pull, shallow);
   }
   0
 }
@@ -73,83 +75,6 @@ pub fn command_root(all: bool) -> i32 {
   0
 }
 
-fn git_clone_or_pull(url: url::Url, dest: &Path, skip_pull: bool, shallow: bool) {
-  if dest.exists() {
-    if !skip_pull {
-      git_pull(dest);
-    }
-  } else {
-    git_clone(url, dest, shallow);
-  }
-}
-
-#[allow(unreachable_code)]
-fn git_clone(url: url::Url, dest: &Path, shallow: bool) {
-  println!("clone: {:?} -> {:?} ({})",
-           url,
-           dest,
-           if shallow { "Shallow" } else { "" });
-  return;
-
-  let mut args = vec!["clone", url.as_str(), dest.to_str().unwrap()];
-  if shallow {
-    args.extend(&["--depth", "1"]);
-  }
-
-  let output = Command::new("git")
-    .args(&args[..])
-    .output()
-    .expect("failed to clone repository");
-  if !output.status.success() {
-    panic!("git clone failed");
-  }
-}
-
-struct ScopeExit<F: FnMut()> {
-  caller: F,
-}
-
-impl<F: FnMut()> ScopeExit<F> {
-  fn new(c: F) -> ScopeExit<F> {
-    ScopeExit { caller: c }
-  }
-}
-
-impl<F: FnMut()> Drop for ScopeExit<F> {
-  fn drop(&mut self) {
-    (self.caller)();
-  }
-}
-
-#[allow(unreachable_code)]
-fn git_pull(dest: &Path) {
-  println!("pull: {:?}", dest);
-  return;
-
-  let curr_dir = std::env::current_dir().unwrap().to_str().unwrap().to_owned();
-  std::env::set_current_dir(dest).unwrap();
-  ScopeExit::new(|| {
-    std::env::set_current_dir(curr_dir.clone()).unwrap();
-  });
-
-  let output = Command::new("git")
-    .args(&["pull"])
-    .output()
-    .expect("failed to clone repository");
-  if !output.status.success() {
-    panic!("git pull failed");
-  }
-}
-
-fn git_config(key: &str) -> String {
-  let output = Command::new("git")
-    .args(&["config", "--path", "--null", "--get-all", key])
-    .output()
-    .expect("failed to execute git");
-  let len = output.stdout.len();
-  String::from_utf8(Vec::from(&output.stdout[0..len - 1])).unwrap()
-}
-
 fn get_local_repositories(filter: Box<Fn(&str) -> bool>) -> Vec<Repository> {
   let mut dst = Vec::new();
 
@@ -181,13 +106,12 @@ fn get_local_repositories(filter: Box<Fn(&str) -> bool>) -> Vec<Repository> {
   dst
 }
 
-
 fn get_local_repos_roots() -> Vec<String> {
   let mut local_repo_roots;
 
   let env_root: String = std::env::var("GHQ_ROOT").unwrap_or("".to_owned());
   if env_root == "" {
-    local_repo_roots = vec![git_config("ghq.root")];
+    local_repo_roots = vec![git::config("ghq.root")];
   } else {
     local_repo_roots = env_root.split(":").map(|s| s.to_owned()).collect();
   }
