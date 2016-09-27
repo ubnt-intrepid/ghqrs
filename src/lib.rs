@@ -14,26 +14,7 @@ struct Repository {
 
 pub fn command_get(projects: Vec<String>, skip_pull: bool, shallow: bool) -> i32 {
   for project in projects {
-    let (protocol, base_url, user, repo);
-    if url::Url::parse(&project).is_ok() {
-      let re = regex::Regex::new(r"([a-z]+)://([\w-\.]+)/([\w-.]+)/([\w-.]+)\.git").unwrap();
-      let caps = re.captures(&project).unwrap();
-      protocol = caps.at(1).unwrap().to_owned();
-      base_url = caps.at(2).unwrap().to_owned();
-      user = caps.at(3).unwrap().to_owned();
-      repo = caps.at(4).unwrap().to_owned();
-    } else {
-      protocol = "https".to_owned();
-      base_url = "github.com".to_owned();
-      let re = regex::Regex::new(r"([\w-.]+)/([\w-.]+)").unwrap();
-      if let Some(caps) = re.captures(&project) {
-        user = caps.at(1).unwrap().to_owned();
-        repo = caps.at(2).unwrap().to_owned();
-      } else {
-        user = project.clone();
-        repo = project.clone();
-      }
-    }
+    let (protocol, base_url, user, repo) = parse_token(project);
     let url = url::Url::parse(&format!("{}://{}/{}/{}.git", protocol, base_url, user, repo))
       .unwrap();
 
@@ -220,4 +201,77 @@ fn get_local_repos_roots() -> Vec<String> {
   assert!(local_repo_roots.len() >= 1);
 
   local_repo_roots
+}
+
+fn parse_token(project: String) -> (String, String, String, String) {
+  let (protocol, base_url, user, repo): (String, String, String, String);
+  match url::Url::parse(&project) {
+    Ok(url) => {
+      protocol = url.scheme().to_owned();
+      base_url = url.host_str().unwrap().to_owned();
+
+      let paths: Vec<_> = url.path_segments().unwrap().map(ToOwned::to_owned).collect();
+      user = paths[0].clone();
+      repo = paths[1].trim_right_matches(".git").to_owned();
+    }
+    Err(_) => {
+      protocol = "https".to_owned();
+      let paths: Vec<String> = project.split("/").map(ToOwned::to_owned).collect();
+      if paths.len() == 3 {
+        base_url = paths[0].clone();
+        user = paths[1].clone();
+        repo = paths[2].clone();
+      } else if paths.len() == 2 {
+        base_url = "github.com".to_owned();
+        user = paths[0].clone();
+        repo = paths[1].clone();
+      } else {
+        base_url = "github.com".to_owned();
+        user = project.clone();
+        repo = project.clone();
+      }
+    }
+  };
+
+  (protocol, base_url, user, repo)
+}
+
+#[cfg(test)]
+mod test_parse_token {
+  use super::parse_token;
+
+  #[test]
+  fn user_project() {
+    let input = "hoge/fuga";
+    let output = parse_token(input.to_owned());
+    assert_eq!(output,
+               ("https".to_owned(), "github.com".to_owned(), "hoge".to_owned(), "fuga".to_owned()));
+  }
+
+  #[test]
+  fn domain_user_project() {
+    let input = "github.com/hoge/fuga";
+    let output = parse_token(input.to_owned());
+    assert_eq!(output,
+               ("https".to_owned(), "github.com".to_owned(), "hoge".to_owned(), "fuga".to_owned()));
+  }
+
+  #[test]
+  fn only_project_name() {
+    let input = "fuga";
+    let output = parse_token(input.to_owned());
+    assert_eq!(output,
+               ("https".to_owned(), "github.com".to_owned(), "fuga".to_owned(), "fuga".to_owned()));
+  }
+
+  #[test]
+  fn repository_url() {
+    let input = "https://gitlab.com/funga-/pecopeco.git";
+    let output = parse_token(input.to_owned());
+    assert_eq!(output,
+               ("https".to_owned(),
+                "gitlab.com".to_owned(),
+                "funga-".to_owned(),
+                "pecopeco".to_owned()));
+  }
 }
