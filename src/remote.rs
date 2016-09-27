@@ -91,7 +91,7 @@ mod test {
 
   #[test]
   fn only_project_name() {
-    let repo = RemoteRepository::new("github.com/hoge/fuga");
+    let repo = RemoteRepository::new("fuga");
     assert_eq!(repo.protocol, "https");
     assert_eq!(repo.base_url, "github.com");
     assert_eq!(repo.user, "fuga");
