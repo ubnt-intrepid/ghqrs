@@ -2,30 +2,20 @@ extern crate walkdir;
 extern crate regex;
 extern crate url;
 
+mod git;
+mod util;
+mod remote;
+
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
-mod git;
-mod util;
-
-#[derive(Debug)]
-struct Repository {
-  root: String,
-  path: String,
-}
 
 pub fn command_get(projects: Vec<String>, skip_pull: bool, shallow: bool) -> i32 {
   for project in projects {
-    let (protocol, base_url, user, repo) = parse_token(project);
-    let url = url::Url::parse(&format!("{}://{}/{}/{}.git", protocol, base_url, user, repo))
-      .unwrap();
+    let repo = remote::RemoteRepository::new(project.as_str());
+    let dest = repo.local_path(&get_local_repos_roots()[0]);
 
-    let mut dest = PathBuf::from(&get_local_repos_roots()[0]);
-    dest.push(base_url);
-    dest.push(user);
-    dest.push(repo);
-
-    git::clone_or_pull(url, dest.as_path(), skip_pull, shallow);
+    git::clone_or_pull(repo.url(), dest.as_path(), skip_pull, shallow);
   }
   0
 }
@@ -73,6 +63,14 @@ pub fn command_root(all: bool) -> i32 {
     println!("{}", roots[0]);
   }
   0
+}
+
+
+
+#[derive(Debug)]
+struct Repository {
+  root: String,
+  path: String,
 }
 
 fn get_local_repositories(filter: Box<Fn(&str) -> bool>) -> Vec<Repository> {
@@ -125,77 +123,4 @@ fn get_local_repos_roots() -> Vec<String> {
   assert!(local_repo_roots.len() >= 1);
 
   local_repo_roots
-}
-
-fn parse_token(project: String) -> (String, String, String, String) {
-  let (protocol, base_url, user, repo): (String, String, String, String);
-  match url::Url::parse(&project) {
-    Ok(url) => {
-      protocol = url.scheme().to_owned();
-      base_url = url.host_str().unwrap().to_owned();
-
-      let paths: Vec<_> = url.path_segments().unwrap().map(ToOwned::to_owned).collect();
-      user = paths[0].clone();
-      repo = paths[1].trim_right_matches(".git").to_owned();
-    }
-    Err(_) => {
-      protocol = "https".to_owned();
-      let paths: Vec<String> = project.split("/").map(ToOwned::to_owned).collect();
-      if paths.len() == 3 {
-        base_url = paths[0].clone();
-        user = paths[1].clone();
-        repo = paths[2].clone();
-      } else if paths.len() == 2 {
-        base_url = "github.com".to_owned();
-        user = paths[0].clone();
-        repo = paths[1].clone();
-      } else {
-        base_url = "github.com".to_owned();
-        user = project.clone();
-        repo = project.clone();
-      }
-    }
-  };
-
-  (protocol, base_url, user, repo)
-}
-
-#[cfg(test)]
-mod test_parse_token {
-  use super::parse_token;
-
-  #[test]
-  fn user_project() {
-    let input = "hoge/fuga";
-    let output = parse_token(input.to_owned());
-    assert_eq!(output,
-               ("https".to_owned(), "github.com".to_owned(), "hoge".to_owned(), "fuga".to_owned()));
-  }
-
-  #[test]
-  fn domain_user_project() {
-    let input = "github.com/hoge/fuga";
-    let output = parse_token(input.to_owned());
-    assert_eq!(output,
-               ("https".to_owned(), "github.com".to_owned(), "hoge".to_owned(), "fuga".to_owned()));
-  }
-
-  #[test]
-  fn only_project_name() {
-    let input = "fuga";
-    let output = parse_token(input.to_owned());
-    assert_eq!(output,
-               ("https".to_owned(), "github.com".to_owned(), "fuga".to_owned(), "fuga".to_owned()));
-  }
-
-  #[test]
-  fn repository_url() {
-    let input = "https://gitlab.com/funga-/pecopeco.git";
-    let output = parse_token(input.to_owned());
-    assert_eq!(output,
-               ("https".to_owned(),
-                "gitlab.com".to_owned(),
-                "funga-".to_owned(),
-                "pecopeco".to_owned()));
-  }
 }
