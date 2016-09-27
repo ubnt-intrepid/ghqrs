@@ -128,7 +128,7 @@ fn git_pull(dest: &Path) {
 
   let curr_dir = std::env::current_dir().unwrap().to_str().unwrap().to_owned();
   std::env::set_current_dir(dest).unwrap();
-  ScopeExit::new(|| {
+  let scope1 = ScopeExit::new(|| {
     std::env::set_current_dir(curr_dir.clone()).unwrap();
   });
 
@@ -217,18 +217,29 @@ fn parse_token(project: String) -> (String, String, String, String) {
     Err(_) => {
       protocol = "https".to_owned();
       let paths: Vec<String> = project.split("/").map(ToOwned::to_owned).collect();
-      if paths.len() == 3 {
-        base_url = paths[0].clone();
-        user = paths[1].clone();
-        repo = paths[2].clone();
-      } else if paths.len() == 2 {
-        base_url = "github.com".to_owned();
-        user = paths[0].clone();
-        repo = paths[1].clone();
+      if paths.len() > 1 && (paths[0] == "." || paths[0] == "..") {
+        let mut buf = std::env::current_dir().unwrap().to_path_buf();
+        for path in paths {
+          buf.push(path);
+        }
+        let path: String =
+          std::fs::canonicalize(buf.as_path()).unwrap().to_str().unwrap().to_owned();
+        let path = path.trim_left_matches(&format!("{}/", get_local_repos_roots()[0])).to_owned();
+        return parse_token(path);
       } else {
-        base_url = "github.com".to_owned();
-        user = project.clone();
-        repo = project.clone();
+        if paths.len() == 3 {
+          base_url = paths[0].clone();
+          user = paths[1].clone();
+          repo = paths[2].clone();
+        } else if paths.len() == 2 {
+          base_url = "github.com".to_owned();
+          user = paths[0].clone();
+          repo = paths[1].clone();
+        } else {
+          base_url = "github.com".to_owned();
+          user = project.clone();
+          repo = project.clone();
+        }
       }
     }
   };
@@ -238,7 +249,10 @@ fn parse_token(project: String) -> (String, String, String, String) {
 
 #[cfg(test)]
 mod test_parse_token {
+  extern crate tempdir;
   use super::parse_token;
+  use std;
+  use super::ScopeExit;
 
   #[test]
   fn user_project() {
@@ -273,5 +287,56 @@ mod test_parse_token {
                 "gitlab.com".to_owned(),
                 "funga-".to_owned(),
                 "pecopeco".to_owned()));
+  }
+
+  #[test]
+  fn relative_path_1() {
+    let tmp_dir = tempdir::TempDir::new("test1").unwrap();
+
+    std::env::set_var("GHQ_ROOT", tmp_dir.path().to_str().unwrap());
+
+    let mut wd = tmp_dir.path().to_path_buf();
+    wd.push("github.com");
+    wd.push("hoge");
+
+    std::fs::create_dir_all(wd.to_str().unwrap()).unwrap();
+
+    let cwd = std::env::current_dir().unwrap().to_str().unwrap().to_owned();
+    std::env::set_current_dir(wd.as_path()).unwrap();
+    let scope1 = ScopeExit::new(|| {
+      std::env::set_current_dir(cwd.clone()).unwrap();
+    });
+
+    std::fs::create_dir("fuga").unwrap();
+
+    let input = "./fuga";
+    let output = parse_token(input.to_owned());
+    assert_eq!(output,
+               ("https".to_owned(), "github.com".to_owned(), "hoge".to_owned(), "fuga".to_owned()));
+  }
+
+  #[test]
+  fn relative_path_2() {
+    let tmp_dir = tempdir::TempDir::new("test2").unwrap();
+
+    std::env::set_var("GHQ_ROOT", tmp_dir.path().to_str().unwrap());
+
+    let mut wd = tmp_dir.path().to_path_buf();
+    wd.push("github.com");
+    wd.push("hoge");
+    wd.push("fuga");
+
+    std::fs::create_dir_all(wd.to_str().unwrap()).unwrap();
+
+    let cwd = std::env::current_dir().unwrap().to_str().unwrap().to_owned();
+    std::env::set_current_dir(wd.as_path()).unwrap();
+    let scope1 = ScopeExit::new(|| {
+      std::env::set_current_dir(cwd.clone()).unwrap();
+    });
+
+    let input = "../fuga";
+    let output = parse_token(input.to_owned());
+    assert_eq!(output,
+               ("https".to_owned(), "github.com".to_owned(), "hoge".to_owned(), "fuga".to_owned()));
   }
 }
