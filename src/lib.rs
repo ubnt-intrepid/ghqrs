@@ -28,7 +28,7 @@ impl Repository {
 
   #[cfg(not(windows))]
   fn absolute_path(&self) -> String {
-    let repo_path = Path::new(self.root).join(self.path);
+    let repo_path = Path::new(&self.root).join(&self.path);
     format!("{}", repo_path.display())
   }
 
