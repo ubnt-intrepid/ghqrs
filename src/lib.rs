@@ -6,7 +6,7 @@ mod git;
 mod util;
 mod remote;
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use walkdir::WalkDir;
 
 pub fn command_get(projects: Vec<String>, skip_pull: bool, shallow: bool) -> i32 {
@@ -40,22 +40,32 @@ impl Repository {
       .unwrap()
       .to_owned()
   }
+
+  fn project_name(&self) -> String {
+    Path::new(&self.path).file_name().unwrap().to_str().unwrap().to_owned()
+  }
+
+  fn contains(&self, query: &str) -> bool {
+    let target: Vec<&str> = self.path.split("/").collect();
+    let target: Vec<&str> = target.into_iter().rev().take(2).collect();
+    format!("{}/{}", target[1], target[0]).contains(query)
+  }
 }
 
 pub fn command_list(exact: bool, format: &str, query: Option<String>) -> i32 {
-  let filter: Box<Fn(&str) -> bool> = {
+  let filter: Box<Fn(&Repository) -> bool> = {
     if let Some(query) = query {
       if exact {
-        Box::new(move |s: &str| s == query)
+        Box::new(move |repo: &Repository| repo.project_name() == query)
       } else {
-        Box::new(move |s: &str| s.contains(&query))
+        Box::new(move |repo: &Repository| repo.contains(&query))
       }
     } else {
       Box::new(|_| true)
     }
   };
 
-  for repo in get_local_repositories(filter) {
+  for repo in get_local_repositories().into_iter().filter(|ref repo| filter(repo)) {
     let path = match format {
       "full" => repo.absolute_path(),
       "unique" => repo.unique_path(),
@@ -88,7 +98,7 @@ struct Repository {
   path: String,
 }
 
-fn get_local_repositories(filter: Box<Fn(&str) -> bool>) -> Vec<Repository> {
+fn get_local_repositories() -> Vec<Repository> {
   let mut dst = Vec::new();
 
   let roots = get_local_repos_roots();
@@ -104,14 +114,7 @@ fn get_local_repositories(filter: Box<Fn(&str) -> bool>) -> Vec<Repository> {
 
       let vcs = vec![".git", ".svn", ".hg", "_darcs"]
         .into_iter()
-        .find(|&e| {
-          let mut buf = PathBuf::from(format!("{}", entry.path().display()));
-          if !filter(buf.file_name().unwrap().to_str().unwrap()) {
-            return false;
-          }
-          buf.push(e);
-          buf.exists()
-        })
+        .find(|&vcs| entry.path().join(vcs).exists())
         .map(|e| format!("{}", &e[1..]));
 
       if vcs.is_some() {
