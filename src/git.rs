@@ -1,42 +1,40 @@
 extern crate url;
 
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio};
 use url::Url;
-use util::PushDir;
 
+fn launch_git(args: &[String], curr_dir: Option<&Path>) -> Result<i32, String> {
+  let mut cmd = Command::new("git");
+  if let Some(curr_dir) = curr_dir {
+    cmd.current_dir(curr_dir);
+  }
 
-pub fn clone(url: Url, dest: &Path, depth: Option<i32>) -> Result<String, String> {
-  let mut args =
+  let mut process = try!(cmd.args(args)
+    .stdin(Stdio::inherit())
+    .stdout(Stdio::inherit())
+    .stderr(Stdio::inherit())
+    .spawn()
+    .map_err(|e| e.to_string()));
+
+  process.wait()
+    .map_err(|e| e.to_string())
+    .and_then(|st| st.code().ok_or("".to_owned()))
+}
+
+pub fn clone(url: Url, dest: &Path, depth: Option<i32>) -> Result<i32, String> {
+  let mut args: Vec<String> =
     vec!["clone".to_owned(), url.as_str().to_owned(), dest.to_str().unwrap().to_owned()];
   if let Some(depth) = depth {
     args.push(format!("--depth={}", depth));
   }
 
-  let output = try!(Command::new("git")
-    .args(args.as_slice())
-    .output()
-    .map_err(|e| e.to_string()));
-  if !output.status.success() {
-    return Err(format!("failed to clone git repository: {:?}", output.stderr));
-  }
-  String::from_utf8(output.stdout).map_err(|e| e.to_string())
+  launch_git(args.as_slice(), None)
 }
 
 
-pub fn pull(dest: &Path) -> Result<String, String> {
-  let pushd = PushDir::enter(dest);
-
-  let output = try!(Command::new("git")
-    .args(&["pull", "--ff-only"])
-    .output()
-    .map_err(|e| e.to_string()));
-  if !output.status.success() {
-    return Err(format!("failed to pull git repository: {:?}", output.stderr));
-  }
-
-  drop(pushd);
-  String::from_utf8(output.stdout).map_err(|e| e.to_string())
+pub fn pull(dest: &Path) -> Result<i32, String> {
+  launch_git(&["pull".to_owned(), "--ff-only".to_owned()], Some(dest))
 }
 
 pub fn config(key: &str) -> String {

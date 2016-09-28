@@ -78,13 +78,11 @@ impl RemoteRepository {
         println!("exists: {}", dest.display());
       } else {
         println!("update: {}", dest.display());
-        let stdout = try!(git::pull(dest.as_path()));
-        println!("{}", stdout);
+        try!(git::pull(dest.as_path()));
       }
     } else {
       println!("clone: {} -> {}", url.as_str(), dest.display());
-      let stdout = try!(git::clone(url, dest.as_path(), depth));
-      println!("{}", stdout);
+      try!(git::clone(url, dest.as_path(), depth));
     }
     Ok(())
   }
