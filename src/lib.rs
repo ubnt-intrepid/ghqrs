@@ -2,13 +2,14 @@ extern crate walkdir;
 extern crate regex;
 extern crate url;
 
-mod git;
+mod vcs;
 mod util;
 mod remote;
 
 use std::path::Path;
 use walkdir::WalkDir;
 use remote::RemoteRepository;
+use std::process::Command;
 
 
 pub fn command_get(projects: Vec<String>, pull: bool, depth: Option<i32>) -> i32 {
@@ -135,7 +136,7 @@ fn get_local_repos_roots() -> Vec<String> {
 
   let env_root: String = std::env::var("GHQ_ROOT").unwrap_or("".to_owned());
   if env_root == "" {
-    local_repo_roots = vec![git::config("ghq.root")];
+    local_repo_roots = vec![get_config("ghq.root")];
   } else {
     local_repo_roots = env_root.split(":").map(|s| s.to_owned()).collect();
   }
@@ -149,4 +150,13 @@ fn get_local_repos_roots() -> Vec<String> {
   assert!(local_repo_roots.len() >= 1);
 
   local_repo_roots
+}
+
+fn get_config(key: &str) -> String {
+  let output = Command::new("git")
+    .args(&["config", "--path", "--null", "--get-all", key])
+    .output()
+    .expect("failed to execute git");
+  let len = output.stdout.len();
+  String::from_utf8_lossy(&output.stdout[0..len - 1]).into_owned()
 }

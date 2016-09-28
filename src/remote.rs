@@ -1,6 +1,6 @@
 extern crate url;
 
-use git;
+use vcs;
 use url::Url;
 use std::io;
 use std::path::PathBuf;
@@ -79,11 +79,11 @@ impl RemoteRepository {
         println!("exists: {}", dest.display());
       } else {
         println!("update: {}", dest.display());
-        try!(git::pull(dest.as_path()));
+        try!(vcs::Git::update(dest.as_path()));
       }
     } else {
       println!("clone: {} -> {}", url.as_str(), dest.display());
-      try!(git::clone(url, dest.as_path(), depth));
+      try!(vcs::Git::clone(url, dest.as_path(), depth));
     }
     Ok(())
   }
