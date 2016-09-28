@@ -14,7 +14,7 @@ use remote::RemoteRepository;
 pub fn command_get(projects: Vec<String>, skip_pull: bool, shallow: bool) -> i32 {
   for project in projects {
     let repo = RemoteRepository::parse(project.as_str()).unwrap();
-    repo.clone_or_pull(&get_local_repos_roots()[0], skip_pull, shallow);
+    repo.clone_or_pull(&get_local_repos_roots()[0], skip_pull, shallow).unwrap();
   }
   0
 }

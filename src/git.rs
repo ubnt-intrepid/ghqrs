@@ -6,45 +6,36 @@ use url::Url;
 use util::PushDir;
 
 
-#[allow(unreachable_code)]
-pub fn clone(url: Url, dest: &Path, shallow: bool) {
-  println!("clone: {:?} -> {:?} ({})",
-           url,
-           dest,
-           if shallow { "Shallow" } else { "" });
-  return;
-
+pub fn clone(url: Url, dest: &Path, shallow: bool) -> Result<String, String> {
   let mut args = vec!["clone", url.as_str(), dest.to_str().unwrap()];
   if shallow {
     args.extend(&["--depth", "1"]);
   }
 
-  let output = Command::new("git")
+  let output = try!(Command::new("git")
     .args(&args[..])
     .output()
-    .expect("failed to clone repository");
+    .map_err(|e| e.to_string()));
   if !output.status.success() {
-    panic!("git clone failed");
+    return Err(format!("failed to clone git repository: {:?}", output.stderr));
   }
+  String::from_utf8(output.stdout).map_err(|e| e.to_string())
 }
 
 
-#[allow(unreachable_code)]
-pub fn pull(dest: &Path) {
-  println!("pull: {:?}", dest);
-  return;
-
+pub fn pull(dest: &Path) -> Result<String, String> {
   let pushd = PushDir::enter(dest);
 
-  let output = Command::new("git")
+  let output = try!(Command::new("git")
     .args(&["pull"])
     .output()
-    .expect("failed to clone repository");
+    .map_err(|e| e.to_string()));
   if !output.status.success() {
-    panic!("git pull failed");
+    return Err(format!("failed to pull git repository: {:?}", output.stderr));
   }
 
   drop(pushd);
+  String::from_utf8(output.stdout).map_err(|e| e.to_string())
 }
 
 pub fn config(key: &str) -> String {
