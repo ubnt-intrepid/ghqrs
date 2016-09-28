@@ -96,7 +96,7 @@ mod test {
 
   #[test]
   fn user_project() {
-    let repo = RemoteRepository::new("hoge/fuga");
+    let repo = RemoteRepository::parse("hoge/fuga").unwrap();
     assert_eq!(repo.protocol, "https");
     assert_eq!(repo.base_url, "github.com");
     assert_eq!(repo.user, "hoge");
@@ -105,7 +105,7 @@ mod test {
 
   #[test]
   fn domain_user_project() {
-    let repo = RemoteRepository::new("github.com/hoge/fuga");
+    let repo = RemoteRepository::parse("github.com/hoge/fuga").unwrap();
     assert_eq!(repo.protocol, "https");
     assert_eq!(repo.base_url, "github.com");
     assert_eq!(repo.user, "hoge");
@@ -114,7 +114,7 @@ mod test {
 
   #[test]
   fn only_project_name() {
-    let repo = RemoteRepository::new("fuga");
+    let repo = RemoteRepository::parse("fuga").unwrap();
     assert_eq!(repo.protocol, "https");
     assert_eq!(repo.base_url, "github.com");
     assert_eq!(repo.user, "fuga");
@@ -123,7 +123,7 @@ mod test {
 
   #[test]
   fn repository_url() {
-    let repo = RemoteRepository::new("https://gitlab.com/funga-/pecopeco.git");
+    let repo = RemoteRepository::parse("https://gitlab.com/funga-/pecopeco.git").unwrap();
     assert_eq!(repo.protocol, "https");
     assert_eq!(repo.base_url, "gitlab.com");
     assert_eq!(repo.user, "funga-");
