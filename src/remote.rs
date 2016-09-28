@@ -2,6 +2,7 @@ extern crate url;
 
 use git;
 use url::Url;
+use std::io;
 use std::path::PathBuf;
 
 pub struct RemoteRepository {
@@ -70,7 +71,7 @@ impl RemoteRepository {
     dest
   }
 
-  pub fn clone_or_pull(&self, root: &str, pull: bool, depth: Option<i32>) -> Result<(), String> {
+  pub fn clone_or_pull(&self, root: &str, pull: bool, depth: Option<i32>) -> Result<(), io::Error> {
     let url = self.url();
     let dest = self.local_path(root);
     if dest.exists() {
