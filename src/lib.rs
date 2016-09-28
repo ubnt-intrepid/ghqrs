@@ -104,9 +104,10 @@ fn get_local_repositories() -> Vec<Repository> {
   for root in roots {
     for entry in WalkDir::new(&root)
       .follow_links(true)
+      .min_depth(3)
+      .max_depth(3)
       .into_iter()
-      .filter_map(|e| e.ok())
-      .filter(|ref e| e.depth() == 3) {
+      .filter_map(|e| e.ok()) {
 
       let path = format!("{}", entry.path().display())
         .replace(&format!("{}{}", root, std::path::MAIN_SEPARATOR), "");
