@@ -42,7 +42,7 @@ impl Repository {
   }
 }
 
-pub fn command_list(exact: bool, fullpath: bool, unique: bool, query: Option<String>) -> i32 {
+pub fn command_list(exact: bool, format: &str, query: Option<String>) -> i32 {
   let filter: Box<Fn(&str) -> bool> = {
     if let Some(query) = query {
       if exact {
@@ -56,13 +56,12 @@ pub fn command_list(exact: bool, fullpath: bool, unique: bool, query: Option<Str
   };
 
   for repo in get_local_repositories(filter) {
-    if fullpath {
-      println!("{}", repo.absolute_path());
-    } else if unique {
-      println!("{}", repo.unique_path());
-    } else {
-      println!("{}", repo.path);
-    }
+    let path = match format {
+      "full" => repo.absolute_path(),
+      "unique" => repo.unique_path(),
+      _ => repo.path,
+    };
+    println!("{}", path);
   }
 
   0

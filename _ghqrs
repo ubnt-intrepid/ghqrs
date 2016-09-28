@@ -78,13 +78,21 @@ _ghqrs() {
             return 0
             ;;
         ghqrs_list)
-            opts=" -e -p -u -h -V  --exact --full-path --unique --help --version  <query> "
+            opts=" -e -f -h -V  --exact --format --help --version  <query> "
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
                 return 0
             fi
             case "${prev}" in
                 
+                --format)
+                    COMPREPLY=("<format>")
+                    return 0
+                    ;;
+                    -f)
+                    COMPREPLY=("<format>")
+                    return 0
+                    ;;
                 *)
                     COMPREPLY=()
                     ;;

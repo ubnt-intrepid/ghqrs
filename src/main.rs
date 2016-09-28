@@ -17,10 +17,9 @@ fn main() {
       }
       "list" => {
         let exact = matches.is_present("exact");
-        let fullpath = matches.is_present("fullpath");
-        let unique = matches.is_present("unique");
+        let format = matches.value_of("format").unwrap_or("default");
         let query = matches.value_of("query").map(ToOwned::to_owned);
-        ghqrs::command_list(exact, fullpath, unique, query)
+        ghqrs::command_list(exact, format, query)
       }
       "root" => {
         let all = matches.is_present("all");
