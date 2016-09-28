@@ -70,11 +70,11 @@ impl RemoteRepository {
     dest
   }
 
-  pub fn clone_or_pull(&self, root: &str, skip_pull: bool, shallow: bool) -> Result<(), String> {
+  pub fn clone_or_pull(&self, root: &str, pull: bool, depth: Option<i32>) -> Result<(), String> {
     let url = self.url();
     let dest = self.local_path(root);
     if dest.exists() {
-      if skip_pull {
+      if !pull {
         println!("exists: {}", dest.display());
       } else {
         println!("update: {}", dest.display());
@@ -83,7 +83,7 @@ impl RemoteRepository {
       }
     } else {
       println!("clone: {} -> {}", url.as_str(), dest.display());
-      let stdout = try!(git::clone(url, dest.as_path(), shallow));
+      let stdout = try!(git::clone(url, dest.as_path(), depth));
       println!("{}", stdout);
     }
     Ok(())

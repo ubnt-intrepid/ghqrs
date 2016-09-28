@@ -11,9 +11,10 @@ fn main() {
     match *s {
       "get" => {
         let projects = matches.values_of("project").unwrap().map(ToOwned::to_owned).collect();
-        let skip_pull = matches.is_present("skip-pull");
-        let shallow = matches.is_present("shallow");
-        ghqrs::command_get(projects, skip_pull, shallow)
+        let pull = matches.is_present("pull");
+        let depth =
+          matches.value_of("depth").map(ToOwned::to_owned).map(|d| d.parse::<i32>().unwrap());
+        ghqrs::command_get(projects, pull, depth)
       }
       "list" => {
         let exact = matches.is_present("exact");

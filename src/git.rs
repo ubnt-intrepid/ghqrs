@@ -6,14 +6,15 @@ use url::Url;
 use util::PushDir;
 
 
-pub fn clone(url: Url, dest: &Path, shallow: bool) -> Result<String, String> {
-  let mut args = vec!["clone", url.as_str(), dest.to_str().unwrap()];
-  if shallow {
-    args.extend(&["--depth", "1"]);
+pub fn clone(url: Url, dest: &Path, depth: Option<i32>) -> Result<String, String> {
+  let mut args =
+    vec!["clone".to_owned(), url.as_str().to_owned(), dest.to_str().unwrap().to_owned()];
+  if let Some(depth) = depth {
+    args.push(format!("--depth={}", depth));
   }
 
   let output = try!(Command::new("git")
-    .args(&args[..])
+    .args(args.as_slice())
     .output()
     .map_err(|e| e.to_string()));
   if !output.status.success() {
@@ -27,7 +28,7 @@ pub fn pull(dest: &Path) -> Result<String, String> {
   let pushd = PushDir::enter(dest);
 
   let output = try!(Command::new("git")
-    .args(&["pull"])
+    .args(&["pull", "--ff-only"])
     .output()
     .map_err(|e| e.to_string()));
   if !output.status.success() {

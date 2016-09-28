@@ -48,13 +48,17 @@ _ghqrs() {
             ;;
         
         ghqrs_get)
-            opts=" -h -V  --skip-pull --shallow --help --version  <project>... "
+            opts=" -h -V  --pull --depth --help --version  <project>... "
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
                 return 0
             fi
             case "${prev}" in
                 
+                --depth)
+                    COMPREPLY=("<depth>")
+                    return 0
+                    ;;
                 *)
                     COMPREPLY=()
                     ;;
