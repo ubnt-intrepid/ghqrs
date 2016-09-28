@@ -30,6 +30,6 @@ deploy:
   overwrite: true
   skip_cleanup: true
   on:
-    repo: ys-nuem/ghqrs
+    repo: ubnt-intrepid/ghqrs
     all_branches: true
     tags: true
