@@ -5,15 +5,6 @@ use std::process::Command;
 use url::Url;
 use util::PushDir;
 
-pub fn clone_or_pull(url: Url, dest: &Path, skip_pull: bool, shallow: bool) {
-  if dest.exists() {
-    if !skip_pull {
-      self::pull(dest);
-    }
-  } else {
-    self::clone(url, dest, shallow);
-  }
-}
 
 #[allow(unreachable_code)]
 pub fn clone(url: Url, dest: &Path, shallow: bool) {

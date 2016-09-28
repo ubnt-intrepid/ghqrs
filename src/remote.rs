@@ -1,5 +1,6 @@
 extern crate url;
 
+use git;
 use url::Url;
 use std::path::PathBuf;
 
@@ -11,14 +12,17 @@ pub struct RemoteRepository {
 }
 
 impl RemoteRepository {
-  pub fn new(project: &str) -> RemoteRepository {
+  pub fn parse(project: &str) -> Result<RemoteRepository, String> {
     let (protocol, base_url, user, repo);
     match url::Url::parse(project) {
       Ok(url) => {
         protocol = url.scheme().to_owned();
-        base_url = url.host_str().unwrap().to_owned();
+        base_url = try!(url.host_str().ok_or("cannot retrieve host information".to_owned()))
+          .to_owned();
 
-        let paths: Vec<_> = url.path_segments().unwrap().map(ToOwned::to_owned).collect();
+        let paths: Vec<_> = try!(url.path_segments().ok_or("failed to split URL".to_owned()))
+          .map(ToOwned::to_owned)
+          .collect();
         user = paths[0].clone();
         repo = paths[1].trim_right_matches(".git").to_owned();
       }
@@ -41,15 +45,15 @@ impl RemoteRepository {
       }
     };
 
-    RemoteRepository {
+    Ok(RemoteRepository {
       protocol: protocol,
       base_url: base_url,
       user: user,
       project: repo,
-    }
+    })
   }
 
-  pub fn url(&self) -> Url {
+  fn url(&self) -> Url {
     Url::parse(&format!("{}://{}/{}/{}.git",
                         self.protocol,
                         self.base_url,
@@ -58,12 +62,24 @@ impl RemoteRepository {
       .unwrap()
   }
 
-  pub fn local_path(&self, root: &str) -> PathBuf {
+  fn local_path(&self, root: &str) -> PathBuf {
     let mut dest = PathBuf::from(root);
     dest.push(&self.base_url);
     dest.push(&self.user);
     dest.push(&self.project);
     dest
+  }
+
+  pub fn clone_or_pull(&self, root: &str, skip_pull: bool, shallow: bool) {
+    let url = self.url();
+    let dest = self.local_path(root);
+    if dest.exists() {
+      if !skip_pull {
+        git::pull(dest.as_path());
+      }
+    } else {
+      git::clone(url, dest.as_path(), shallow);
+    }
   }
 }
 

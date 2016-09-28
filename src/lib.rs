@@ -8,15 +8,60 @@ mod remote;
 
 use std::path::Path;
 use walkdir::WalkDir;
+use remote::RemoteRepository;
+
 
 pub fn command_get(projects: Vec<String>, skip_pull: bool, shallow: bool) -> i32 {
   for project in projects {
-    let repo = remote::RemoteRepository::new(project.as_str());
-    let dest = repo.local_path(&get_local_repos_roots()[0]);
-
-    git::clone_or_pull(repo.url(), dest.as_path(), skip_pull, shallow);
+    let repo = RemoteRepository::parse(project.as_str()).unwrap();
+    repo.clone_or_pull(&get_local_repos_roots()[0], skip_pull, shallow);
   }
   0
+}
+
+pub fn command_list(exact: bool, format: &str, query: Option<String>) -> i32 {
+  let filter: Box<Fn(&Repository) -> bool>;
+  if let Some(query) = query {
+    if exact {
+      filter = Box::new(move |repo: &Repository| repo.project_name() == query);
+    } else {
+      filter = Box::new(move |repo: &Repository| repo.contains(&query));
+    }
+  } else {
+    filter = Box::new(|_| true);
+  }
+
+  for repo in get_local_repositories().into_iter().filter(|ref repo| filter(repo)) {
+    let path = match format {
+      "full" => repo.absolute_path(),
+      "unique" => repo.unique_path(),
+      _ => repo.path,
+    };
+    println!("{}", path);
+  }
+
+  0
+}
+
+pub fn command_root(all: bool) -> i32 {
+  let roots = get_local_repos_roots();
+  if all {
+    for root in roots {
+      println!("{}", root);
+    }
+  } else {
+    println!("{}", roots[0]);
+  }
+  0
+}
+
+
+
+#[derive(Debug)]
+struct Repository {
+  vcs: String,
+  root: String,
+  path: String,
 }
 
 impl Repository {
@@ -50,52 +95,6 @@ impl Repository {
     let target: Vec<&str> = target.into_iter().rev().take(2).collect();
     format!("{}/{}", target[1], target[0]).contains(query)
   }
-}
-
-pub fn command_list(exact: bool, format: &str, query: Option<String>) -> i32 {
-  let filter: Box<Fn(&Repository) -> bool> = {
-    if let Some(query) = query {
-      if exact {
-        Box::new(move |repo: &Repository| repo.project_name() == query)
-      } else {
-        Box::new(move |repo: &Repository| repo.contains(&query))
-      }
-    } else {
-      Box::new(|_| true)
-    }
-  };
-
-  for repo in get_local_repositories().into_iter().filter(|ref repo| filter(repo)) {
-    let path = match format {
-      "full" => repo.absolute_path(),
-      "unique" => repo.unique_path(),
-      _ => repo.path,
-    };
-    println!("{}", path);
-  }
-
-  0
-}
-
-pub fn command_root(all: bool) -> i32 {
-  let roots = get_local_repos_roots();
-  if all {
-    for root in roots {
-      println!("{}", root);
-    }
-  } else {
-    println!("{}", roots[0]);
-  }
-  0
-}
-
-
-
-#[derive(Debug)]
-struct Repository {
-  vcs: String,
-  root: String,
-  path: String,
 }
 
 fn get_local_repositories() -> Vec<Repository> {
