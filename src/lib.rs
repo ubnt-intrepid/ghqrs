@@ -9,7 +9,6 @@ mod remote;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
-
 pub fn command_get(projects: Vec<String>, skip_pull: bool, shallow: bool) -> i32 {
   for project in projects {
     let repo = remote::RemoteRepository::new(project.as_str());
@@ -18,6 +17,29 @@ pub fn command_get(projects: Vec<String>, skip_pull: bool, shallow: bool) -> i32
     git::clone_or_pull(repo.url(), dest.as_path(), skip_pull, shallow);
   }
   0
+}
+
+impl Repository {
+  #[cfg(windows)]
+  fn absolute_path(&self) -> String {
+    let repo_path = Path::new(&self.root).join(&self.path);
+    format!("{}", repo_path.display()).replace("/", "\\")
+  }
+
+  #[cfg(not(windows))]
+  fn absolute_path(&self) -> String {
+    let repo_path = Path::new(self.root).join(self.path);
+    format!("{}", repo_path.display())
+  }
+
+  fn unique_path(&self) -> String {
+    Path::new(&self.path)
+      .file_name()
+      .unwrap()
+      .to_str()
+      .unwrap()
+      .to_owned()
+  }
 }
 
 pub fn command_list(exact: bool, fullpath: bool, unique: bool, query: Option<String>) -> i32 {
@@ -35,16 +57,9 @@ pub fn command_list(exact: bool, fullpath: bool, unique: bool, query: Option<Str
 
   for repo in get_local_repositories(filter) {
     if fullpath {
-      let mut repo_path = PathBuf::from(repo.root);
-      repo_path.push(repo.path);
-      println!("{}", repo_path.display());
+      println!("{}", repo.absolute_path());
     } else if unique {
-      let repo_name = Path::new(&repo.path)
-        .file_name()
-        .unwrap()
-        .to_str()
-        .unwrap();
-      println!("{}", repo_name);
+      println!("{}", repo.unique_path());
     } else {
       println!("{}", repo.path);
     }
@@ -69,6 +84,7 @@ pub fn command_root(all: bool) -> i32 {
 
 #[derive(Debug)]
 struct Repository {
+  vcs: String,
   root: String,
   path: String,
 }
@@ -78,25 +94,33 @@ fn get_local_repositories(filter: Box<Fn(&str) -> bool>) -> Vec<Repository> {
 
   let roots = get_local_repos_roots();
   for root in roots {
-    for entry in WalkDir::new(&root).follow_links(true).into_iter().filter_map(|e| e.ok()) {
-      let path = format!("{}", entry.path().display()).replace(&format!("{}/", root), "");
-      if entry.depth() == 3 {
+    for entry in WalkDir::new(&root)
+      .follow_links(true)
+      .into_iter()
+      .filter_map(|e| e.ok())
+      .filter(|ref e| e.depth() == 3) {
 
-        let entry = vec![".git", ".svn", ".hg", "_darcs"].into_iter().find(|&e| {
+      let path = format!("{}", entry.path().display())
+        .replace(&format!("{}{}", root, std::path::MAIN_SEPARATOR), "");
+
+      let vcs = vec![".git", ".svn", ".hg", "_darcs"]
+        .into_iter()
+        .find(|&e| {
           let mut buf = PathBuf::from(format!("{}", entry.path().display()));
           if !filter(buf.file_name().unwrap().to_str().unwrap()) {
             return false;
           }
           buf.push(e);
           buf.exists()
-        });
+        })
+        .map(|e| format!("{}", &e[1..]));
 
-        if entry.is_some() {
-          dst.push(Repository {
-            root: root.clone(),
-            path: path,
-          });
-        }
+      if vcs.is_some() {
+        dst.push(Repository {
+          vcs: vcs.unwrap(),
+          root: root.clone(),
+          path: path.replace("\\", "/"),
+        });
       }
     }
   }
