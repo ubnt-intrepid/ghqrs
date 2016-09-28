@@ -5,7 +5,7 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 use url::Url;
 
-fn launch_git(args: &[String], curr_dir: Option<&Path>) -> Result<i32, io::Error> {
+fn launch_git(args: &[&str], curr_dir: Option<&Path>) -> Result<i32, io::Error> {
   let mut cmd = Command::new("git");
   if let Some(curr_dir) = curr_dir {
     cmd.current_dir(curr_dir);
@@ -22,10 +22,11 @@ fn launch_git(args: &[String], curr_dir: Option<&Path>) -> Result<i32, io::Error
 }
 
 pub fn clone(url: Url, dest: &Path, depth: Option<i32>) -> Result<i32, io::Error> {
-  let mut args: Vec<String> =
-    vec!["clone".to_owned(), url.as_str().to_owned(), dest.to_str().unwrap().to_owned()];
-  if let Some(depth) = depth {
-    args.push(format!("--depth={}", depth));
+  let depth = depth.map(|depth| format!("--depth={}", depth));
+
+  let mut args = vec!["clone", url.as_str(), dest.to_str().unwrap()];
+  if let Some(ref depth) = depth {
+    args.push(&depth);
   }
 
   launch_git(args.as_slice(), None)
@@ -33,7 +34,7 @@ pub fn clone(url: Url, dest: &Path, depth: Option<i32>) -> Result<i32, io::Error
 
 
 pub fn pull(dest: &Path) -> Result<i32, io::Error> {
-  launch_git(&["pull".to_owned(), "--ff-only".to_owned()], Some(dest))
+  launch_git(&["pull", "--ff-only"], Some(dest))
 }
 
 pub fn config(key: &str) -> String {
@@ -42,5 +43,5 @@ pub fn config(key: &str) -> String {
     .output()
     .expect("failed to execute git");
   let len = output.stdout.len();
-  String::from_utf8(Vec::from(&output.stdout[0..len - 1])).unwrap()
+  String::from_utf8_lossy(&output.stdout[0..len - 1]).into_owned()
 }
