@@ -105,7 +105,7 @@ fn get_local_repositories() -> Vec<Repository> {
   for root in roots {
     for entry in WalkDir::new(&root)
       .follow_links(true)
-      .min_depth(3)
+      .min_depth(2)
       .max_depth(3)
       .into_iter()
       .filter_map(|e| e.ok()) {
