@@ -1,7 +1,5 @@
 #![allow(dead_code)]
 
-extern crate url;
-
 use std::io;
 use std::path::Path;
 use std::process::{Command, Stdio};

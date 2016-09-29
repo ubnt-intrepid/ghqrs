@@ -14,7 +14,8 @@ use std::process::Command;
 
 pub fn command_get(projects: Vec<String>, pull: bool, depth: Option<i32>) -> i32 {
   for project in projects {
-    let repo = RemoteRepository::parse(project.as_str()).unwrap();
+    let url = remote::make_remote_url(&project).unwrap();
+    let repo = RemoteRepository::new(url).unwrap();
     repo.clone_or_pull(&get_local_repos_roots()[0], pull, depth).unwrap();
   }
   0

@@ -1,9 +1,7 @@
-extern crate url;
-
-use vcs;
-use url::Url;
 use std::io;
 use std::path::PathBuf;
+use url::{Url, ParseError};
+use vcs;
 
 pub struct RemoteRepository {
   protocol: String,
@@ -13,38 +11,16 @@ pub struct RemoteRepository {
 }
 
 impl RemoteRepository {
-  pub fn parse(project: &str) -> Result<RemoteRepository, String> {
-    let (protocol, base_url, user, repo);
-    match url::Url::parse(project) {
-      Ok(url) => {
-        protocol = url.scheme().to_owned();
-        base_url = try!(url.host_str().ok_or("cannot retrieve host information".to_owned()))
-          .to_owned();
+  pub fn new(url: Url) -> Result<RemoteRepository, String> {
+    let protocol = url.scheme().to_owned();
+    let base_url = try!(url.host_str().ok_or("cannot retrieve host information".to_owned()))
+      .to_owned();
 
-        let paths: Vec<_> = try!(url.path_segments().ok_or("failed to split URL".to_owned()))
-          .map(ToOwned::to_owned)
-          .collect();
-        user = paths[0].clone();
-        repo = paths[1].trim_right_matches(".git").to_owned();
-      }
-      Err(_) => {
-        protocol = "https".to_owned();
-        let paths: Vec<String> = project.split("/").map(ToOwned::to_owned).collect();
-        if paths.len() == 3 {
-          base_url = paths[0].clone();
-          user = paths[1].clone();
-          repo = paths[2].clone();
-        } else if paths.len() == 2 {
-          base_url = "github.com".to_owned();
-          user = paths[0].clone();
-          repo = paths[1].clone();
-        } else {
-          base_url = "github.com".to_owned();
-          user = project.to_owned();
-          repo = project.to_owned();
-        }
-      }
-    };
+    let paths: Vec<_> = try!(url.path_segments().ok_or("failed to split URL".to_owned()))
+      .map(ToOwned::to_owned)
+      .collect();
+    let user = paths[0].clone();
+    let repo = paths[1].trim_right_matches(".git").to_owned();
 
     Ok(RemoteRepository {
       protocol: protocol,
@@ -89,43 +65,51 @@ impl RemoteRepository {
   }
 }
 
+pub fn make_remote_url(project: &str) -> Result<Url, ParseError> {
+  Url::parse(project).or_else(|_| make_remote_url_from_relative(project))
+}
+
+fn make_remote_url_from_relative(project: &str) -> Result<Url, ParseError> {
+  let paths: Vec<_> = project.split("/").collect();
+
+  let (host, user, repo) = match paths.len() {
+    3 => (paths[0], paths[1], paths[2]),
+    2 => ("github.com", paths[0], paths[1]),
+    1 => ("github.com", paths[0], paths[0]),
+    _ => {
+      panic!("'{}' is an unsupported pattern to resolve remote URL.",
+             project)
+    }
+  };
+
+  Url::parse(&format!("https://{}/{}/{}.git", host, user, repo))
+}
+
 #[cfg(test)]
 mod test {
-  use super::RemoteRepository;
+  use super::make_remote_url;
 
   #[test]
   fn user_project() {
-    let repo = RemoteRepository::parse("hoge/fuga").unwrap();
-    assert_eq!(repo.protocol, "https");
-    assert_eq!(repo.base_url, "github.com");
-    assert_eq!(repo.user, "hoge");
-    assert_eq!(repo.project, "fuga");
+    let url = make_remote_url("hoge/fuga").unwrap();
+    assert_eq!(url.as_str(), "https://github.com/hoge/fuga.git");
   }
 
   #[test]
   fn domain_user_project() {
-    let repo = RemoteRepository::parse("github.com/hoge/fuga").unwrap();
-    assert_eq!(repo.protocol, "https");
-    assert_eq!(repo.base_url, "github.com");
-    assert_eq!(repo.user, "hoge");
-    assert_eq!(repo.project, "fuga");
+    let url = make_remote_url("github.com/hoge/fuga").unwrap();
+    assert_eq!(url.as_str(), "https://github.com/hoge/fuga.git");
   }
 
   #[test]
   fn only_project_name() {
-    let repo = RemoteRepository::parse("fuga").unwrap();
-    assert_eq!(repo.protocol, "https");
-    assert_eq!(repo.base_url, "github.com");
-    assert_eq!(repo.user, "fuga");
-    assert_eq!(repo.project, "fuga");
+    let url = make_remote_url("fuga").unwrap();
+    assert_eq!(url.as_str(), "https://github.com/fuga/fuga.git");
   }
 
   #[test]
   fn repository_url() {
-    let repo = RemoteRepository::parse("https://gitlab.com/funga-/pecopeco.git").unwrap();
-    assert_eq!(repo.protocol, "https");
-    assert_eq!(repo.base_url, "gitlab.com");
-    assert_eq!(repo.user, "funga-");
-    assert_eq!(repo.project, "pecopeco");
+    let url = make_remote_url("https://gitlab.com/funga-/pecopeco.git").unwrap();
+    assert_eq!(url.as_str(), "https://gitlab.com/funga-/pecopeco.git");
   }
 }
