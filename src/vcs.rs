@@ -31,7 +31,7 @@ impl Mercurial {
   }
 
   pub fn update(path: &Path) -> Result<i32, io::Error> {
-    wait_exec("hg", &["pull", "update"], Some(path))
+    wait_exec("hg", &["pull", "--update"], Some(path))
   }
 }
 
