@@ -49,15 +49,15 @@ impl LocalRepository {
     self.path.clone()
   }
 
-  pub fn project_name(&self) -> String {
-    Path::new(&self.path).file_name().unwrap().to_str().unwrap().to_owned()
-  }
+  // pub fn project_name(&self) -> String {
+  //   Path::new(&self.path).file_name().unwrap().to_str().unwrap().to_owned()
+  // }
 
-  pub fn contains(&self, query: &str) -> bool {
-    let target: Vec<&str> = self.path.split("/").collect();
-    let target: Vec<&str> = target.into_iter().rev().take(2).collect();
-    format!("{}/{}", target[1], target[0]).contains(query)
-  }
+  // pub fn contains(&self, query: &str) -> bool {
+  //   let target: Vec<&str> = self.path.split("/").collect();
+  //   let target: Vec<&str> = target.into_iter().rev().take(2).collect();
+  //   format!("{}/{}", target[1], target[0]).contains(query)
+  // }
 }
 
 
@@ -117,9 +117,7 @@ impl RemoteRepository {
 }
 
 
-pub fn get_local_repositories<F>(filter: F) -> BTreeMap<String, Vec<LocalRepository>>
-  where F: Fn(&LocalRepository) -> bool
-{
+pub fn get_local_repositories() -> BTreeMap<String, Vec<LocalRepository>> {
   let mut dst = BTreeMap::new();
 
   let roots = config::get_roots();
@@ -146,9 +144,7 @@ pub fn get_local_repositories<F>(filter: F) -> BTreeMap<String, Vec<LocalReposit
           root: root.clone(),
           path: path.replace("\\", "/"),
         };
-        if filter(&repo) {
-          repos.push(repo);
-        }
+        repos.push(repo);
       }
     }
 

@@ -9,7 +9,33 @@ mod repository;
 mod util;
 mod vcs;
 
-use repository::{LocalRepository, RemoteRepository};
+use repository::RemoteRepository;
+
+// output format
+enum ListFormat {
+  // relative path from host directory
+  // e.g. github.com/hoge/fuga
+  Default,
+
+  // absolute path
+  // e.g. /home/hoge/github.com/hoge/fuga or C:\Users\hoge\github.com\hoge\fuga
+  FullPath,
+
+  // only project name
+  // e.g. fuga
+  Unique,
+}
+
+impl<'a> From<&'a str> for ListFormat {
+  fn from(s: &str) -> ListFormat {
+    match s {
+      "full" => ListFormat::FullPath,
+      "unique" => ListFormat::Unique,
+      _ => ListFormat::Default,
+    }
+  }
+}
+
 
 fn main() {
   let matches = cli::build_cli().get_matches();
@@ -22,10 +48,8 @@ fn main() {
       command_get(projects, pull, depth)
     }
     ("list", Some(m)) => {
-      let exact = m.is_present("exact");
-      let format = m.value_of("format").unwrap_or("default");
-      let query = m.value_of("query").map(ToOwned::to_owned);
-      command_list(exact, format, query)
+      let format = m.value_of("format").unwrap_or("default").into();
+      command_list(format)
     }
     ("root", Some(m)) => {
       let all = m.is_present("all");
@@ -47,24 +71,13 @@ fn command_get(projects: Vec<String>, pull: bool, depth: Option<i32>) -> i32 {
   0
 }
 
-fn command_list(exact: bool, format: &str, query: Option<String>) -> i32 {
-  let filter: Box<Fn(&LocalRepository) -> bool>;
-  if let Some(query) = query {
-    if exact {
-      filter = Box::new(move |repo: &LocalRepository| repo.project_name() == query);
-    } else {
-      filter = Box::new(move |repo: &LocalRepository| repo.contains(&query));
-    }
-  } else {
-    filter = Box::new(|_| true);
-  }
-
-  for (_, repos) in repository::get_local_repositories(|ref repo| filter(repo)) {
+fn command_list(format: ListFormat) -> i32 {
+  for (_, repos) in repository::get_local_repositories() {
     for repo in repos {
       let path = match format {
-        "full" => repo.absolute_path(),
-        "unique" => repo.unique_path(),
-        _ => repo.relative_path(),
+        ListFormat::Default => repo.relative_path(),
+        ListFormat::FullPath => repo.absolute_path(),
+        ListFormat::Unique => repo.unique_path(),
       };
       println!("{}", path);
     }

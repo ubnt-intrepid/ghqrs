@@ -82,7 +82,7 @@ _ghqrs() {
             return 0
             ;;
         ghqrs_list)
-            opts=" -e -f -h -V  --exact --format --help --version  <query> "
+            opts=" -f -h -V  --format --help --version  "
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
                 return 0
@@ -123,3 +123,4 @@ _ghqrs() {
 }
 
 complete -F _ghqrs ghqrs
+te -F _ghqrs ghqrs
