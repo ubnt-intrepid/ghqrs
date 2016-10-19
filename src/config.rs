@@ -2,22 +2,12 @@ use std::env;
 use std::process::Command;
 
 pub fn get_roots() -> Vec<String> {
-  let mut roots;
-
-  let env_root = env::var("GHQ_ROOT").unwrap_or("".to_owned());
-  if env_root == "" {
-    roots = vec![get_config("ghq.root")];
-  } else {
-    roots = env_root.split(":").map(|s| s.to_owned()).collect();
+  let mut root = get_config("ghq.root").trim().to_owned();
+  if root == "" {
+    root = format!("{}", env::home_dir().unwrap().join(".ghq").display());
   }
 
-  if roots.len() == 0 {
-    roots.push(format!("{}", env::home_dir().unwrap().join(".ghq").display()));
-  }
-
-  assert!(roots.len() >= 1);
-
-  roots
+  vec![root]
 }
 
 pub fn get_config(key: &str) -> String {
