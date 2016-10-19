@@ -1,7 +1,19 @@
+use std::collections::BTreeMap;
 use std::io;
-use std::path::PathBuf;
-use url::{Url, ParseError};
+use std::path::{Path, PathBuf, MAIN_SEPARATOR};
+
+use config;
 use vcs;
+use url::{Url, ParseError};
+use walkdir::WalkDir;
+
+
+#[derive(Debug)]
+pub struct LocalRepository {
+  vcs: String,
+  root: String,
+  path: String,
+}
 
 pub struct RemoteRepository {
   protocol: String,
@@ -9,6 +21,45 @@ pub struct RemoteRepository {
   user: String,
   project: String,
 }
+
+
+impl LocalRepository {
+  #[cfg(windows)]
+  pub fn absolute_path(&self) -> String {
+    let repo_path = Path::new(&self.root).join(&self.path);
+    format!("{}", repo_path.display()).replace("/", "\\")
+  }
+
+  #[cfg(not(windows))]
+  pub fn absolute_path(&self) -> String {
+    let repo_path = Path::new(&self.root).join(&self.path);
+    format!("{}", repo_path.display())
+  }
+
+  pub fn unique_path(&self) -> String {
+    Path::new(&self.path)
+      .file_name()
+      .unwrap()
+      .to_str()
+      .unwrap()
+      .to_owned()
+  }
+
+  pub fn relative_path(&self) -> String {
+    self.path.clone()
+  }
+
+  pub fn project_name(&self) -> String {
+    Path::new(&self.path).file_name().unwrap().to_str().unwrap().to_owned()
+  }
+
+  pub fn contains(&self, query: &str) -> bool {
+    let target: Vec<&str> = self.path.split("/").collect();
+    let target: Vec<&str> = target.into_iter().rev().take(2).collect();
+    format!("{}/{}", target[1], target[0]).contains(query)
+  }
+}
+
 
 impl RemoteRepository {
   pub fn new(url: Url) -> Result<RemoteRepository, String> {
@@ -63,6 +114,48 @@ impl RemoteRepository {
     }
     Ok(())
   }
+}
+
+
+pub fn get_local_repositories<F>(filter: F) -> BTreeMap<String, Vec<LocalRepository>>
+  where F: Fn(&LocalRepository) -> bool
+{
+  let mut dst = BTreeMap::new();
+
+  let roots = config::get_roots();
+  for root in roots {
+    let mut repos = Vec::new();
+    for entry in WalkDir::new(&root)
+      .follow_links(true)
+      .min_depth(2)
+      .max_depth(3)
+      .into_iter()
+      .filter_map(|e| e.ok()) {
+
+      let path = format!("{}", entry.path().display())
+        .replace(&format!("{}{}", root, MAIN_SEPARATOR), "");
+
+      let vcs = vec![".git", ".svn", ".hg", "_darcs"]
+        .into_iter()
+        .find(|&vcs| entry.path().join(vcs).exists())
+        .map(|e| format!("{}", &e[1..]));
+
+      if vcs.is_some() {
+        let repo = LocalRepository {
+          vcs: vcs.unwrap(),
+          root: root.clone(),
+          path: path.replace("\\", "/"),
+        };
+        if filter(&repo) {
+          repos.push(repo);
+        }
+      }
+    }
+
+    dst.insert(root, repos);
+  }
+
+  dst
 }
 
 pub fn make_remote_url(project: &str) -> Result<Url, ParseError> {

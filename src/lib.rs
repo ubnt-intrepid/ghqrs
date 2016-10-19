@@ -3,18 +3,16 @@ extern crate regex;
 extern crate url;
 
 mod config;
-mod local;
-mod remote;
+mod repository;
 mod util;
 mod vcs;
 
-use local::Repository;
-use remote::RemoteRepository;
+use repository::{LocalRepository, RemoteRepository};
 
 
 pub fn command_get(projects: Vec<String>, pull: bool, depth: Option<i32>) -> i32 {
   for project in projects {
-    let url = remote::make_remote_url(&project).unwrap();
+    let url = repository::make_remote_url(&project).unwrap();
     let repo = RemoteRepository::new(url).unwrap();
     repo.clone_or_pull(&config::get_roots()[0], pull, depth).unwrap();
   }
@@ -22,18 +20,18 @@ pub fn command_get(projects: Vec<String>, pull: bool, depth: Option<i32>) -> i32
 }
 
 pub fn command_list(exact: bool, format: &str, query: Option<String>) -> i32 {
-  let filter: Box<Fn(&Repository) -> bool>;
+  let filter: Box<Fn(&LocalRepository) -> bool>;
   if let Some(query) = query {
     if exact {
-      filter = Box::new(move |repo: &Repository| repo.project_name() == query);
+      filter = Box::new(move |repo: &LocalRepository| repo.project_name() == query);
     } else {
-      filter = Box::new(move |repo: &Repository| repo.contains(&query));
+      filter = Box::new(move |repo: &LocalRepository| repo.contains(&query));
     }
   } else {
     filter = Box::new(|_| true);
   }
 
-  for (_, repos) in local::get_local_repositories(|ref repo| filter(repo)) {
+  for (_, repos) in repository::get_local_repositories(|ref repo| filter(repo)) {
     for repo in repos {
       let path = match format {
         "full" => repo.absolute_path(),
