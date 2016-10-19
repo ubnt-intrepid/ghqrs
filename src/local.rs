@@ -1,4 +1,5 @@
 use std;
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use config;
@@ -49,12 +50,14 @@ impl Repository {
   }
 }
 
-
-pub fn get_local_repositories() -> Vec<Repository> {
-  let mut dst = Vec::new();
+pub fn get_local_repositories<F>(filter: F) -> BTreeMap<String, Vec<Repository>>
+  where F: Fn(&Repository) -> bool
+{
+  let mut dst = BTreeMap::new();
 
   let roots = config::get_roots();
   for root in roots {
+    let mut repos = Vec::new();
     for entry in WalkDir::new(&root)
       .follow_links(true)
       .min_depth(2)
@@ -71,13 +74,18 @@ pub fn get_local_repositories() -> Vec<Repository> {
         .map(|e| format!("{}", &e[1..]));
 
       if vcs.is_some() {
-        dst.push(Repository {
+        let repo = Repository {
           vcs: vcs.unwrap(),
           root: root.clone(),
           path: path.replace("\\", "/"),
-        });
+        };
+        if filter(&repo) {
+          repos.push(repo);
+        }
       }
     }
+
+    dst.insert(root, repos);
   }
 
   dst

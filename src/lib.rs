@@ -33,13 +33,15 @@ pub fn command_list(exact: bool, format: &str, query: Option<String>) -> i32 {
     filter = Box::new(|_| true);
   }
 
-  for repo in local::get_local_repositories().into_iter().filter(|ref repo| filter(repo)) {
-    let path = match format {
-      "full" => repo.absolute_path(),
-      "unique" => repo.unique_path(),
-      _ => repo.relative_path(),
-    };
-    println!("{}", path);
+  for (_, repos) in local::get_local_repositories(|ref repo| filter(repo)) {
+    for repo in repos {
+      let path = match format {
+        "full" => repo.absolute_path(),
+        "unique" => repo.unique_path(),
+        _ => repo.relative_path(),
+      };
+      println!("{}", path);
+    }
   }
 
   0
