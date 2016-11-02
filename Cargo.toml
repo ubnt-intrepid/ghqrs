@@ -4,8 +4,6 @@ version = "0.1.0"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 description = "Manages cloned repositories from Git hostings"
 
-build = "build.rs"
-
 [build-dependencies]
 clap = "^2.13.0"
 

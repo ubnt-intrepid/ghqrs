@@ -3,12 +3,12 @@ extern crate walkdir;
 extern crate regex;
 extern crate url;
 
-mod cli;
 mod config;
 mod repository;
 mod util;
 mod vcs;
 
+use clap::{Arg, App, AppSettings, SubCommand};
 use repository::RemoteRepository;
 
 // output format
@@ -38,7 +38,7 @@ impl<'a> From<&'a str> for ListFormat {
 
 
 fn main() {
-  let matches = cli::build_cli().get_matches();
+  let matches = cli().get_matches();
 
   let exitcode = match matches.subcommand() {
     ("get", Some(m)) => {
@@ -59,6 +59,41 @@ fn main() {
   };
 
   std::process::exit(exitcode);
+}
+
+fn cli() -> App<'static, 'static> {
+  App::new(env!("CARGO_PKG_NAME"))
+    .about(env!("CARGO_PKG_DESCRIPTION"))
+    .version(env!("CARGO_PKG_VERSION"))
+    .author(env!("CARGO_PKG_AUTHORS"))
+    .setting(AppSettings::VersionlessSubcommands)
+    .setting(AppSettings::SubcommandRequiredElseHelp)
+    .subcommand(SubCommand::with_name("get")
+      .about("Clone or sync with remote repository")
+      .arg(Arg::with_name("project")
+        .multiple(true)
+        .required(true)
+        .help("repository name or URL"))
+      .arg(Arg::with_name("pull")
+        .long("pull")
+        .help("Pull active branch if the local repository has already existed"))
+      .arg(Arg::with_name("depth")
+        .long("depth")
+        .takes_value(true)
+        .help("The number of commit history (i.e. do shallow clone)")))
+    .subcommand(SubCommand::with_name("list")
+      .about("List locally cloned repositories")
+      .arg(Arg::with_name("format")
+        .short("f")
+        .long("format")
+        .takes_value(true)
+        .help("Output format of paths")))
+    .subcommand(SubCommand::with_name("root")
+      .about("Show repositories's root")
+      .arg(Arg::with_name("all")
+        .short("a")
+        .long("all")
+        .help("Show all roots")))
 }
 
 
