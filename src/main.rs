@@ -2,6 +2,9 @@ extern crate clap;
 extern crate walkdir;
 extern crate regex;
 extern crate url;
+extern crate shellexpand;
+extern crate toml;
+extern crate rustc_serialize;
 
 mod config;
 mod repository;
@@ -9,6 +12,7 @@ mod util;
 mod vcs;
 
 use clap::{Arg, App, AppSettings, SubCommand};
+use config::Config;
 use repository::RemoteRepository;
 
 // output format
@@ -98,10 +102,13 @@ fn cli() -> App<'static, 'static> {
 
 
 fn command_get(projects: Vec<String>, pull: bool, depth: Option<i32>) -> i32 {
+  let config = Config::load().unwrap();
+  let root = config.roots().iter().next().unwrap();
+
   for project in projects {
     let url = repository::make_remote_url(&project).unwrap();
     let repo = RemoteRepository::new(url).unwrap();
-    repo.clone_or_pull(&config::get_roots()[0], pull, depth).unwrap();
+    repo.clone_or_pull(&root, pull, depth).unwrap();
   }
   0
 }
@@ -122,13 +129,13 @@ fn command_list(format: ListFormat) -> i32 {
 }
 
 fn command_root(all: bool) -> i32 {
-  let roots = config::get_roots();
+  let config = Config::load().unwrap();
   if all {
-    for root in roots {
+    for root in config.roots() {
       println!("{}", root);
     }
   } else {
-    println!("{}", roots[0]);
+    println!("{}", config.roots().iter().next().unwrap());
   }
   0
 }

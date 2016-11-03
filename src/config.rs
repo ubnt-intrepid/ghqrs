@@ -1,20 +1,57 @@
+use std::borrow::Cow;
 use std::env;
-use std::process::Command;
+use std::fs::File;
+use std::io::{self, Read};
+use std::path::Path;
+use toml;
+use shellexpand;
 
-pub fn get_roots() -> Vec<String> {
-  let mut root = get_config("ghq.root").trim().to_owned();
-  if root == "" {
-    root = format!("{}", env::home_dir().unwrap().join(".ghq").display());
-  }
+const CONFIG_CANDIDATES: &'static [&'static str] =
+  &["~/.ghqconfig", "~/.config/ghq/config", ".ghqconfig"];
 
-  vec![root]
+#[derive(RustcDecodable, Default)]
+pub struct Config {
+  roots: Vec<String>,
 }
 
-pub fn get_config(key: &str) -> String {
-  let output = Command::new("git")
-    .args(&["config", "--path", "--null", "--get-all", key])
-    .output()
-    .expect("failed to execute git");
-  let len = output.stdout.len();
-  String::from_utf8_lossy(&output.stdout[0..len - 1]).into_owned()
+impl Config {
+  pub fn load() -> Result<Config, io::Error> {
+    let content = try!(read_file_if_exists(CONFIG_CANDIDATES))
+      .expect("No configuration file found.");
+    let mut config: Config = toml::decode_str(&content).unwrap();
+
+    if config.roots().len() == 0 {
+      let home_dir = env::home_dir().unwrap();
+      let root_dir = home_dir.join(".ghq").to_str().map(ToOwned::to_owned).unwrap();
+      config.roots = vec![root_dir];
+    }
+
+    for i in 0..(config.roots().len()) {
+      config.roots[i] = shellexpand::full(&config.roots[i]).map(Cow::into_owned).unwrap();
+    }
+
+    Ok(config)
+  }
+
+  pub fn roots(&self) -> &[String] {
+    self.roots.as_slice()
+  }
+}
+
+
+// Read the content of a file in `paths`
+fn read_file_if_exists(paths: &[&str]) -> Result<Option<String>, io::Error> {
+  for path in paths {
+    // expand the candidate of path.
+    let path = shellexpand::full(path).unwrap().into_owned();
+    let path = Path::new(&path);
+
+    if path.exists() && path.is_file() {
+      let mut content = String::new();
+      return File::open(path)
+        .and_then(|ref mut file| file.read_to_string(&mut content))
+        .and(Ok(Some(content)));
+    }
+  }
+  Ok(None)
 }
