@@ -23,18 +23,6 @@ impl Git {
   }
 }
 
-pub struct Mercurial;
-
-impl Mercurial {
-  pub fn clone(url: Url, dest: &Path, _: Option<i32>) -> Result<i32, io::Error> {
-    wait_exec("hg", &["clone", url.as_str(), dest.to_str().unwrap()], None)
-  }
-
-  pub fn update(path: &Path) -> Result<i32, io::Error> {
-    wait_exec("hg", &["pull", "--update"], Some(path))
-  }
-}
-
 
 fn wait_exec(cmd: &str, args: &[&str], curr_dir: Option<&Path>) -> Result<i32, io::Error> {
   let mut command = Command::new(cmd);
