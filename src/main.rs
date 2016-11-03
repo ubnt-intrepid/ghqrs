@@ -3,6 +3,7 @@ extern crate walkdir;
 extern crate regex;
 extern crate url;
 extern crate shellexpand;
+extern crate toml;
 
 mod config;
 mod repository;
