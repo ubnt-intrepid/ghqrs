@@ -18,7 +18,7 @@ impl Config {
   pub fn load() -> Result<Config, io::Error> {
     let content = try!(read_file_if_exists(CONFIG_CANDIDATES))
       .expect("No configuration file found.");
-    let mut config: Config = toml::decode_str(&content).unwrap_or_default();
+    let mut config: Config = toml::decode_str(&content).unwrap();
 
     if config.roots().len() == 0 {
       let home_dir = env::home_dir().unwrap();

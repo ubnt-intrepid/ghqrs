@@ -1,6 +1,6 @@
 # vim: set ft=toml ts=2 sw=2 et :
 
-root = [
+roots = [
   "$HOME/repos",
   "$GOPATH/src"
 ]
