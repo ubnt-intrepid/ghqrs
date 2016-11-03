@@ -1,11 +1,8 @@
 [package]
 name = "ghqrs"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 description = "Manages cloned repositories from Git hostings"
-
-[build-dependencies]
-clap = "^2.13.0"
 
 [dependencies]
 clap = "^2.13.0"
@@ -13,5 +10,5 @@ walkdir = "^0.1.8"
 regex = "^0.1.77"
 url = "^1.2.0"
 shellexpand = "^0.1.0"
-toml = "*"
-rustc-serialize = "*"
+toml = "^0.2.1"
+rustc-serialize = "^0.3.19"
