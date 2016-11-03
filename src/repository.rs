@@ -1,11 +1,7 @@
-use std::collections::BTreeMap;
 use std::io;
-use std::path::{Path, PathBuf, MAIN_SEPARATOR};
-
-use config::Config;
+use std::path::{Path, PathBuf};
 use vcs;
 use url::{Url, ParseError};
-use walkdir::WalkDir;
 
 
 #[derive(Debug)]
@@ -24,6 +20,14 @@ pub struct RemoteRepository {
 
 
 impl LocalRepository {
+  pub fn new(vcs: String, root: String, path: String) -> LocalRepository {
+    LocalRepository {
+      vcs: vcs,
+      root: root,
+      path: path,
+    }
+  }
+
   #[cfg(windows)]
   pub fn absolute_path(&self) -> String {
     let repo_path = Path::new(&self.root).join(&self.path);
@@ -101,43 +105,6 @@ impl RemoteRepository {
   }
 }
 
-
-pub fn get_local_repositories() -> BTreeMap<String, Vec<LocalRepository>> {
-  let config = Config::load().unwrap();
-
-  let mut dst = BTreeMap::new();
-  for root in config.roots() {
-    let mut repos = Vec::new();
-    for entry in WalkDir::new(&root)
-      .follow_links(true)
-      .min_depth(2)
-      .max_depth(3)
-      .into_iter()
-      .filter_map(|e| e.ok()) {
-
-      let path = format!("{}", entry.path().display())
-        .replace(&format!("{}{}", root, MAIN_SEPARATOR), "");
-
-      let vcs = vec![".git", ".svn", ".hg", "_darcs"]
-        .into_iter()
-        .find(|&vcs| entry.path().join(vcs).exists())
-        .map(|e| format!("{}", &e[1..]));
-
-      if vcs.is_some() {
-        let repo = LocalRepository {
-          vcs: vcs.unwrap(),
-          root: root.to_owned(),
-          path: path.replace("\\", "/"),
-        };
-        repos.push(repo);
-      }
-    }
-
-    dst.insert(root.to_owned(), repos);
-  }
-
-  dst
-}
 
 pub fn make_remote_url(project: &str) -> Result<Url, ParseError> {
   Url::parse(project).or_else(|_| make_remote_url_from_relative(project))

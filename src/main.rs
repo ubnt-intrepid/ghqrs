@@ -106,7 +106,9 @@ fn command_clone(queries: Vec<String>) -> i32 {
 }
 
 fn command_list(format: ListFormat) -> i32 {
-  for (_, repos) in repository::get_local_repositories() {
+  let config = Config::load().unwrap();
+
+  for (_, repos) in config.repositories() {
     for repo in repos {
       let path = match format {
         ListFormat::Default => repo.relative_path(),

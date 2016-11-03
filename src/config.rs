@@ -1,10 +1,13 @@
+use std::collections::BTreeMap;
 use std::borrow::Cow;
 use std::env;
 use std::fs::File;
 use std::io::{self, Read};
-use std::path::Path;
+use std::path::{Path, MAIN_SEPARATOR};
 use toml;
 use shellexpand;
+use walkdir::WalkDir;
+use repository::LocalRepository;
 
 const CONFIG_CANDIDATES: &'static [&'static str] =
   &["~/.ghqconfig", "~/.config/ghq/config", ".ghqconfig"];
@@ -35,6 +38,38 @@ impl Config {
 
   pub fn roots(&self) -> &[String] {
     self.roots.as_slice()
+  }
+
+  pub fn repositories(&self) -> BTreeMap<String, Vec<LocalRepository>> {
+    let mut dst = BTreeMap::new();
+
+    for root in self.roots() {
+      let mut repos = Vec::new();
+      for entry in WalkDir::new(&root)
+        .follow_links(true)
+        .min_depth(2)
+        .max_depth(3)
+        .into_iter()
+        .filter_map(|e| e.ok()) {
+
+        let path = format!("{}", entry.path().display())
+          .replace(&format!("{}{}", root, MAIN_SEPARATOR), "");
+
+        let vcs = vec![".git", ".svn", ".hg", "_darcs"]
+          .into_iter()
+          .find(|&vcs| entry.path().join(vcs).exists())
+          .map(|e| format!("{}", &e[1..]));
+
+        if vcs.is_some() {
+          let repo = LocalRepository::new(vcs.unwrap(), root.to_owned(), path.replace("\\", "/"));
+          repos.push(repo);
+        }
+      }
+
+      dst.insert(root.to_owned(), repos);
+    }
+
+    dst
   }
 }
 
