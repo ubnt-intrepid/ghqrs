@@ -48,16 +48,6 @@ impl LocalRepository {
   pub fn relative_path(&self) -> String {
     self.path.clone()
   }
-
-  // pub fn project_name(&self) -> String {
-  //   Path::new(&self.path).file_name().unwrap().to_str().unwrap().to_owned()
-  // }
-
-  // pub fn contains(&self, query: &str) -> bool {
-  //   let target: Vec<&str> = self.path.split("/").collect();
-  //   let target: Vec<&str> = target.into_iter().rev().take(2).collect();
-  //   format!("{}/{}", target[1], target[0]).contains(query)
-  // }
 }
 
 
@@ -98,16 +88,11 @@ impl RemoteRepository {
     dest
   }
 
-  pub fn clone_or_pull(&self, root: &str, pull: bool, depth: Option<i32>) -> Result<(), io::Error> {
+  pub fn clone(&self, root: &str, depth: Option<i32>) -> Result<(), io::Error> {
     let url = self.url();
     let dest = self.local_path(root);
     if dest.exists() {
-      if !pull {
-        println!("exists: {}", dest.display());
-      } else {
-        println!("update: {}", dest.display());
-        try!(vcs::Git::update(dest.as_path()));
-      }
+      println!("exists: {}", dest.display());
     } else {
       println!("clone: {} -> {}", url.as_str(), dest.display());
       try!(vcs::Git::clone(url, dest.as_path(), depth));

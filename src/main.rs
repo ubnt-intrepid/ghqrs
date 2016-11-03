@@ -45,11 +45,9 @@ fn main() {
   let matches = cli().get_matches();
 
   let exitcode = match matches.subcommand() {
-    ("get", Some(m)) => {
-      let projects = m.values_of("project").unwrap().map(ToOwned::to_owned).collect();
-      let pull = m.is_present("pull");
-      let depth = m.value_of("depth").map(|ref d| d.parse::<i32>().unwrap());
-      command_get(projects, pull, depth)
+    ("clone", Some(m)) => {
+      let queries = m.values_of("query").unwrap().map(ToOwned::to_owned).collect();
+      command_clone(queries)
     }
     ("list", Some(m)) => {
       let format = m.value_of("format").unwrap_or("default").into();
@@ -72,21 +70,15 @@ fn cli() -> App<'static, 'static> {
     .author(env!("CARGO_PKG_AUTHORS"))
     .setting(AppSettings::VersionlessSubcommands)
     .setting(AppSettings::SubcommandRequiredElseHelp)
-    .subcommand(SubCommand::with_name("get")
-      .about("Clone or sync with remote repository")
-      .arg(Arg::with_name("project")
+    .subcommand(SubCommand::with_name("clone")
+      .about("Clone remote repository into your working directory")
+      .setting(AppSettings::SubcommandRequiredElseHelp)
+      .arg(Arg::with_name("query")
         .multiple(true)
         .required(true)
-        .help("repository name or URL"))
-      .arg(Arg::with_name("pull")
-        .long("pull")
-        .help("Pull active branch if the local repository has already existed"))
-      .arg(Arg::with_name("depth")
-        .long("depth")
-        .takes_value(true)
-        .help("The number of commit history (i.e. do shallow clone)")))
+        .help("repository name or URL")))
     .subcommand(SubCommand::with_name("list")
-      .about("List locally cloned repositories")
+      .about("List local repositories into the working directories")
       .arg(Arg::with_name("format")
         .short("f")
         .long("format")
@@ -101,14 +93,14 @@ fn cli() -> App<'static, 'static> {
 }
 
 
-fn command_get(projects: Vec<String>, pull: bool, depth: Option<i32>) -> i32 {
+fn command_clone(queries: Vec<String>) -> i32 {
   let config = Config::load().unwrap();
   let root = config.roots().iter().next().unwrap();
 
-  for project in projects {
-    let url = repository::make_remote_url(&project).unwrap();
+  for query in queries {
+    let url = repository::make_remote_url(&query).unwrap();
     let repo = RemoteRepository::new(url).unwrap();
-    repo.clone_or_pull(&root, pull, depth).unwrap();
+    repo.clone(&root, None).unwrap();
   }
   0
 }
