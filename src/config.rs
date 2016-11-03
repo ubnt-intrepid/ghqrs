@@ -12,7 +12,7 @@ const CONFIG_CANDIDATES: &'static [&'static str] =
   &["~/.ghqconfig", "~/.config/ghq/config", ".ghqconfig"];
 
 #[derive(RustcDecodable, Default)]
-pub struct Config {
+struct Config {
   roots: Vec<String>,
 }
 
@@ -22,27 +22,42 @@ impl Config {
       .expect("No configuration file found.");
     let mut config: Config = toml::decode_str(&content).unwrap();
 
-    if config.roots().len() == 0 {
+    if config.roots.len() == 0 {
       let home_dir = env::home_dir().unwrap();
       let root_dir = home_dir.join(".ghq").to_str().map(ToOwned::to_owned).unwrap();
       config.roots = vec![root_dir];
     }
 
-    for i in 0..(config.roots().len()) {
+    for i in 0..(config.roots.len()) {
       config.roots[i] = shellexpand::full(&config.roots[i]).map(Cow::into_owned).unwrap();
     }
 
     Ok(config)
   }
+}
+
+pub struct Workspace {
+  config: Config,
+}
+
+impl Workspace {
+  pub fn init() -> Result<Workspace, io::Error> {
+    let config = try!(Config::load());
+    Ok(Workspace { config: config })
+  }
 
   pub fn roots(&self) -> &[String] {
-    self.roots.as_slice()
+    self.config.roots.as_slice()
+  }
+
+  pub fn root(&self) -> Option<String> {
+    self.config.roots.iter().next().cloned()
   }
 
   pub fn repositories(&self) -> BTreeMap<String, Vec<Repository>> {
     let mut dst = BTreeMap::new();
 
-    for root in self.roots() {
+    for root in self.config.roots.iter() {
       let mut repos = Vec::new();
       for entry in WalkDir::new(&root)
         .follow_links(true)

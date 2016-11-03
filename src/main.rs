@@ -12,7 +12,7 @@ mod util;
 mod vcs;
 
 use clap::{Arg, App, AppSettings, SubCommand};
-use config::Config;
+use config::Workspace;
 
 // output format
 enum ListFormat {
@@ -93,8 +93,9 @@ fn cli() -> App<'static, 'static> {
 
 
 fn command_clone(queries: Vec<String>) -> i32 {
-  let config = Config::load().unwrap();
-  let root = config.roots().iter().next().unwrap();
+  let workspace = Workspace::init()
+    .unwrap_or_else(|e| panic!("failed to initialize workspace: {:?}", e));
+  let root = workspace.root().expect("cannot get the destination directory of targets");
 
   for query in queries {
     let url = remote::make_remote_url(&query).unwrap();
@@ -105,9 +106,9 @@ fn command_clone(queries: Vec<String>) -> i32 {
 }
 
 fn command_list(format: ListFormat) -> i32 {
-  let config = Config::load().unwrap();
-
-  for (_, repos) in config.repositories() {
+  let workspace = Workspace::init()
+    .unwrap_or_else(|e| panic!("failed to initialize workspace: {:?}", e));
+  for (_, repos) in workspace.repositories() {
     for repo in repos {
       let path = match format {
         ListFormat::Default => repo.relative_path(),
@@ -122,13 +123,14 @@ fn command_list(format: ListFormat) -> i32 {
 }
 
 fn command_root(all: bool) -> i32 {
-  let config = Config::load().unwrap();
+  let workspace = Workspace::init()
+    .unwrap_or_else(|e| panic!("failed to initialize workspace: {:?}", e));
   if all {
-    for root in config.roots() {
+    for root in workspace.roots() {
       println!("{}", root);
     }
   } else {
-    println!("{}", config.roots().iter().next().unwrap());
+    println!("{}", workspace.root().unwrap());
   }
   0
 }
