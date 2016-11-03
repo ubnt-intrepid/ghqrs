@@ -118,10 +118,10 @@ impl RemoteRepository {
 
 
 pub fn get_local_repositories() -> BTreeMap<String, Vec<LocalRepository>> {
-  let mut dst = BTreeMap::new();
+  let config = config::Config::load().unwrap();
 
-  let roots = config::get_roots();
-  for root in roots {
+  let mut dst = BTreeMap::new();
+  for root in config.roots() {
     let mut repos = Vec::new();
     for entry in WalkDir::new(&root)
       .follow_links(true)
@@ -141,14 +141,14 @@ pub fn get_local_repositories() -> BTreeMap<String, Vec<LocalRepository>> {
       if vcs.is_some() {
         let repo = LocalRepository {
           vcs: vcs.unwrap(),
-          root: root.clone(),
+          root: root.to_owned(),
           path: path.replace("\\", "/"),
         };
         repos.push(repo);
       }
     }
 
-    dst.insert(root, repos);
+    dst.insert(root.to_owned(), repos);
   }
 
   dst

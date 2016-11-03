@@ -4,6 +4,7 @@ extern crate regex;
 extern crate url;
 extern crate shellexpand;
 extern crate toml;
+extern crate rustc_serialize;
 
 mod config;
 mod repository;
@@ -103,7 +104,10 @@ fn command_get(projects: Vec<String>, pull: bool, depth: Option<i32>) -> i32 {
   for project in projects {
     let url = repository::make_remote_url(&project).unwrap();
     let repo = RemoteRepository::new(url).unwrap();
-    repo.clone_or_pull(&config::get_roots()[0], pull, depth).unwrap();
+    repo.clone_or_pull(&config::Config::load().unwrap().roots().iter().next().unwrap(),
+                     pull,
+                     depth)
+      .unwrap();
   }
   0
 }
@@ -124,13 +128,13 @@ fn command_list(format: ListFormat) -> i32 {
 }
 
 fn command_root(all: bool) -> i32 {
-  let roots = config::get_roots();
+  let config = config::Config::load().unwrap();
   if all {
-    for root in roots {
+    for root in config.roots() {
       println!("{}", root);
     }
   } else {
-    println!("{}", roots[0]);
+    println!("{}", config.roots().iter().next().unwrap());
   }
   0
 }

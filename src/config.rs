@@ -1,31 +1,55 @@
+use std::borrow::Cow;
 use std::env;
 use std::fs::File;
-use std::io::Read;
+use std::io::{self, Read};
+use std::path::Path;
 use toml;
 use shellexpand;
 
-pub fn get_roots() -> Vec<String> {
-  let mut file = File::open(".ghqconfig").unwrap();
-  let mut content = String::new();
-  file.read_to_string(&mut content).unwrap();
-  let config = toml::Parser::new(&content).parse().expect("failed to parse .ghqconfig");
+const CONFIG_CANDIDATES: &'static [&'static str] =
+  &["~/.ghqconfig", "~/.config/ghq/config", ".ghqconfig"];
 
-  let roots;
-  if let Some(r) = config.get("root") {
-    match *r {
-      toml::Value::String(ref s) => {
-        roots = vec![shellexpand::full(s).unwrap().into_owned()];
-      }
-      toml::Value::Array(ref a) => {
-        roots = a.iter()
-          .map(|a| shellexpand::full(a.as_str().unwrap()).unwrap().into_owned())
-          .collect::<Vec<_>>();
-      }
-      _ => panic!("The type of 'root' is invalid"),
+#[derive(RustcDecodable, Default)]
+pub struct Config {
+  roots: Vec<String>,
+}
+
+impl Config {
+  pub fn load() -> Result<Config, io::Error> {
+    let content = try!(read_file_if_exists(CONFIG_CANDIDATES)).expect("No configuration file found.");
+    let mut config: Config = toml::decode_str(&content).unwrap_or_default();
+
+    if config.roots().len() == 0 {
+      let home_dir = env::home_dir().unwrap();
+      let root_dir = home_dir.join(".ghq").to_str().map(ToOwned::to_owned).unwrap();
+      config.roots = vec![root_dir];
     }
-  } else {
-    roots = vec![format!("{}", env::home_dir().unwrap().join(".ghq").display())];
+
+    for i in 0..(config.roots().len()) {
+      config.roots[i] = shellexpand::full(&config.roots[i]).map(Cow::into_owned).unwrap();
+    }
+
+    Ok(config)
   }
 
-  roots
+  pub fn roots(&self) -> &[String] {
+    self.roots.as_slice()
+  }
+}
+
+
+// Read the content of a file in `paths`
+fn read_file_if_exists(paths: &[&str]) -> Result<Option<String>, io::Error> {
+  for path in paths {
+      // expand the candidate of path.
+    let path = shellexpand::full(path).unwrap().into_owned();
+    let path = Path::new(&path);
+
+    if path.exists() && path.is_file() {
+      let mut content = String::new();
+      try!(File::open(path).and_then(|ref mut file| file.read_to_string(&mut content)));
+      return Ok(Some(content));
+    }
+  }
+  Ok(None)
 }
