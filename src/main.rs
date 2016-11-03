@@ -102,13 +102,13 @@ fn cli() -> App<'static, 'static> {
 
 
 fn command_get(projects: Vec<String>, pull: bool, depth: Option<i32>) -> i32 {
+  let config = Config::load().unwrap();
+  let root = config.roots().iter().next().unwrap();
+
   for project in projects {
     let url = repository::make_remote_url(&project).unwrap();
     let repo = RemoteRepository::new(url).unwrap();
-    repo.clone_or_pull(&config::Config::load().unwrap().roots().iter().next().unwrap(),
-                     pull,
-                     depth)
-      .unwrap();
+    repo.clone_or_pull(&root, pull, depth).unwrap();
   }
   0
 }
