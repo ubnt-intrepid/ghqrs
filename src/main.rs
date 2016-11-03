@@ -12,6 +12,7 @@ mod util;
 mod vcs;
 
 use clap::{Arg, App, AppSettings, SubCommand};
+use config::Config;
 use repository::RemoteRepository;
 
 // output format
@@ -128,7 +129,7 @@ fn command_list(format: ListFormat) -> i32 {
 }
 
 fn command_root(all: bool) -> i32 {
-  let config = config::Config::load().unwrap();
+  let config = Config::load().unwrap();
   if all {
     for root in config.roots() {
       println!("{}", root);

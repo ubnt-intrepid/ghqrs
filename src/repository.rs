@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::io;
 use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 
-use config;
+use config::Config;
 use vcs;
 use url::{Url, ParseError};
 use walkdir::WalkDir;
@@ -118,7 +118,7 @@ impl RemoteRepository {
 
 
 pub fn get_local_repositories() -> BTreeMap<String, Vec<LocalRepository>> {
-  let config = config::Config::load().unwrap();
+  let config = Config::load().unwrap();
 
   let mut dst = BTreeMap::new();
   for root in config.roots() {
