@@ -6,13 +6,13 @@ extern crate shellexpand;
 extern crate toml;
 extern crate rustc_serialize;
 
-mod config;
 mod remote;
 mod util;
 mod vcs;
+mod workspace;
 
 use clap::{Arg, App, AppSettings, SubCommand};
-use config::Workspace;
+use workspace::Workspace;
 
 // output format
 enum ListFormat {
