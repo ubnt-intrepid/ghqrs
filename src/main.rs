@@ -7,13 +7,12 @@ extern crate toml;
 extern crate rustc_serialize;
 
 mod config;
-mod repository;
+mod remote;
 mod util;
 mod vcs;
 
 use clap::{Arg, App, AppSettings, SubCommand};
 use config::Config;
-use repository::RemoteRepository;
 
 // output format
 enum ListFormat {
@@ -98,8 +97,8 @@ fn command_clone(queries: Vec<String>) -> i32 {
   let root = config.roots().iter().next().unwrap();
 
   for query in queries {
-    let url = repository::make_remote_url(&query).unwrap();
-    let repo = RemoteRepository::new(url).unwrap();
+    let url = remote::make_remote_url(&query).unwrap();
+    let repo = remote::RemoteRepository::new(url).unwrap();
     repo.clone(&root, None).unwrap();
   }
   0

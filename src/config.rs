@@ -7,7 +7,6 @@ use std::path::{Path, MAIN_SEPARATOR};
 use toml;
 use shellexpand;
 use walkdir::WalkDir;
-use repository::LocalRepository;
 
 const CONFIG_CANDIDATES: &'static [&'static str] =
   &["~/.ghqconfig", "~/.config/ghq/config", ".ghqconfig"];
@@ -40,7 +39,7 @@ impl Config {
     self.roots.as_slice()
   }
 
-  pub fn repositories(&self) -> BTreeMap<String, Vec<LocalRepository>> {
+  pub fn repositories(&self) -> BTreeMap<String, Vec<Repository>> {
     let mut dst = BTreeMap::new();
 
     for root in self.roots() {
@@ -61,7 +60,11 @@ impl Config {
           .map(|e| format!("{}", &e[1..]));
 
         if vcs.is_some() {
-          let repo = LocalRepository::new(vcs.unwrap(), root.to_owned(), path.replace("\\", "/"));
+          let repo = Repository {
+            vcs: vcs.unwrap(),
+            root: root.to_owned(),
+            path: path.replace("\\", "/"),
+          };
           repos.push(repo);
         }
       }
@@ -70,6 +73,41 @@ impl Config {
     }
 
     dst
+  }
+}
+
+
+#[derive(Debug)]
+pub struct Repository {
+  vcs: String,
+  root: String,
+  path: String,
+}
+
+impl Repository {
+  #[cfg(windows)]
+  pub fn absolute_path(&self) -> String {
+    let repo_path = Path::new(&self.root).join(&self.path);
+    format!("{}", repo_path.display()).replace("/", "\\")
+  }
+
+  #[cfg(not(windows))]
+  pub fn absolute_path(&self) -> String {
+    let repo_path = Path::new(&self.root).join(&self.path);
+    format!("{}", repo_path.display())
+  }
+
+  pub fn unique_path(&self) -> String {
+    Path::new(&self.path)
+      .file_name()
+      .unwrap()
+      .to_str()
+      .unwrap()
+      .to_owned()
+  }
+
+  pub fn relative_path(&self) -> String {
+    self.path.clone()
   }
 }
 

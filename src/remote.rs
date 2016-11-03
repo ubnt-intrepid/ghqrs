@@ -1,15 +1,8 @@
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use vcs;
 use url::{Url, ParseError};
 
-
-#[derive(Debug)]
-pub struct LocalRepository {
-  vcs: String,
-  root: String,
-  path: String,
-}
 
 pub struct RemoteRepository {
   protocol: String,
@@ -17,43 +10,6 @@ pub struct RemoteRepository {
   user: String,
   project: String,
 }
-
-
-impl LocalRepository {
-  pub fn new(vcs: String, root: String, path: String) -> LocalRepository {
-    LocalRepository {
-      vcs: vcs,
-      root: root,
-      path: path,
-    }
-  }
-
-  #[cfg(windows)]
-  pub fn absolute_path(&self) -> String {
-    let repo_path = Path::new(&self.root).join(&self.path);
-    format!("{}", repo_path.display()).replace("/", "\\")
-  }
-
-  #[cfg(not(windows))]
-  pub fn absolute_path(&self) -> String {
-    let repo_path = Path::new(&self.root).join(&self.path);
-    format!("{}", repo_path.display())
-  }
-
-  pub fn unique_path(&self) -> String {
-    Path::new(&self.path)
-      .file_name()
-      .unwrap()
-      .to_str()
-      .unwrap()
-      .to_owned()
-  }
-
-  pub fn relative_path(&self) -> String {
-    self.path.clone()
-  }
-}
-
 
 impl RemoteRepository {
   pub fn new(url: Url) -> Result<RemoteRepository, String> {
