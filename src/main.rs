@@ -71,7 +71,6 @@ fn cli() -> App<'static, 'static> {
     .setting(AppSettings::SubcommandRequiredElseHelp)
     .subcommand(SubCommand::with_name("clone")
       .about("Clone remote repository into your working directory")
-      .setting(AppSettings::SubcommandRequiredElseHelp)
       .arg(Arg::with_name("query")
         .multiple(true)
         .required(true)
