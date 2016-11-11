@@ -1,35 +1,40 @@
 language: generic
-sudo: required
-dist: trusty
+sudo: false
 
-matrix:
-  include:
-  - os: linux
-    env: TARGET=ghqrs  TOOLCHAIN=stable  HOST=x86_64-unknown-linux-gnu
-  - os: osx
-    env: TARGET=ghqrs  TOOLCHAIN=stable  HOST=x86_64-apple-darwin
+os:
+  - linux
+  - osx
+
+env:
+  - PKGNAME=ghqrs ARCH=x86_64
+  - PKGNAME=ghqrs ARCH=i686
+
+before_install:
+  - if [[ $TRAVIS_OS_NAME == "linux" && $ARCH == "x86_64" ]]; then export HOST=x86_64-unknown-linux-musl; fi
+  - if [[ $TRAVIS_OS_NAME == "linux" && $ARCH == "i686"   ]]; then export HOST=i686-unknown-linux-musl; fi
+  - if [[ $TRAVIS_OS_NAME == "osx"   && $ARCH == "x86_64" ]]; then export HOST=x86_64-apple-darwin; fi
+  - if [[ $TRAVIS_OS_NAME == "osx"   && $ARCH == "i686"   ]]; then export HOST=i686-apple-darwin; fi
 
 install:
-  - curl -sSLf sh.rustup.rs | sh -s -- -y --default-toolchain="$TOOLCHAIN" --default-host="$HOST" --no-modify-path --verbose
-  - export PATH="$HOME/.cargo/bin:$PATH"
-  - rustc -V
-  - cargo -V
+  - curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable
+  - export PATH=~/.cargo/bin:$PATH
+  - if ! [[ $TRAVIS_OS_NAME == "osx" && $ARCH == "x86_64" ]]; then rustup target add ${HOST}; fi
 
 script:
-  - cargo build --release
-  - cargo test --release
-
-before_deploy:
-  - cp target/release/$TARGET $TARGET-$HOST
+  - cargo build --release --target=${HOST}
+  - cargo test  --release --target=${HOST}
+  - bash ./ci/make_package.sh
 
 deploy:
   provider: releases
   api_key:
     secure: mtOaxqXT20hUqttHk5Ors5BsXMoTa7Eg1IrqdZ6KKNH/1z+eoHb+gRDhtBQyju0Vni6n2fG/QIT5lIkN9ks0zVAHbRk3dL7iwLJDbJjK9yqhd7i9vSR/TfbsefMqSlyUgFONIObSivAVaMTj5TZOWqyX5Z2niX1Q+sFHVoBjSDM+uLrqBJpxmH3nf0+FHe4Y5Nkn0DapPVTvMwWnT+I0UY3C6yMLVPk9DXQfxhZ2PZN91674lk08qAmMv05ES90uYttUmCol2aa0EYRhz57hurJ//LFDyW5xOJf74/dANcGQu0nk9ROZQPpIdmI81hIONMhbdrehY93TxaGYrYZHtJXsIo6bw4/TXE5t6+ZETBKpTastCGilQ0a03iT4M7NMmasRyNH70v6eTbUuOlil5bARYAvrHwuJneF9PqlN3Rc4wgZ+g5MIRkYOb+9o/994waE997EMDVqY5WEYoP3QlFvWmAQ1MZPeUMVPGeuhx9/GGkeG3NLjuhRDwLThI3N40BkmkvKi8ZLO/AsI51JWGAy+CIdcpBWA0ZubEYG1/mrHUoVoC+ESomVSNue3IUi30CwHRFkpKlILeeuoRQ8wkZG8s2Ojl1iVZ8gBrw5HlmTYbHrV3i4N1IYTcPypzTWePuwqZIeov7XimjYlUXrZOBF7oWlubIPdzv+N6w9O9qg=
-  file: $TARGET-$HOST
+  file: "${PKGNAME}-${HOST}.tar.gz"
+  file_glob: true
   overwrite: true
   skip_cleanup: true
   on:
     repo: ubnt-intrepid/ghqrs
     all_branches: true
     tags: true
+
