@@ -1,5 +1,3 @@
-version: {build}
-
 branches:
   only:
     - master
