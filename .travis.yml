@@ -1,6 +1,10 @@
 language: generic
 sudo: false
 
+branches:
+  only:
+    - master
+
 os:
   - linux
   - osx
