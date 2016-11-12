@@ -3,9 +3,17 @@ box: tomaka/rust-android-docker
 build:
   steps:
     - script:
+        name: Set environment variables
+        code: |
+          export PKGNAME=ghqrs
+          export HOST=arm-linux-androideabi
+
+    - script:
         name: Install dependencies
         code: |
           sudo apt-get install -y python
+          rustup default stable
+          rustup target add arm-linux-androideabi
 
     - script:
         name: install standard toolchain
@@ -15,14 +23,13 @@ build:
           echo "linker = \"$HOME/my-android-toolchain/bin/arm-linux-androideabi-gcc\"" >> $HOME/.cargo/config
 
     - script:
-        name: show version
+        name: Show version of toolset
         code: |
-          ls -al
-          echo $PATH
-          cargo -V
+          rustc --version
+          cargo --version
           python --version
 
     - script:
-        name: build and package the target
+        name: Build and package the target
         code: |
           bash ./ci/make_package.sh
