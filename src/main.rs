@@ -1,10 +1,10 @@
 extern crate clap;
-extern crate walkdir;
 extern crate regex;
-extern crate url;
+extern crate rustc_serialize;
 extern crate shellexpand;
 extern crate toml;
-extern crate rustc_serialize;
+extern crate url;
+extern crate walkdir;
 
 mod config;
 mod remote;
