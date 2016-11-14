@@ -8,7 +8,6 @@ extern crate walkdir;
 
 mod config;
 mod remote;
-mod util;
 mod vcs;
 mod workspace;
 
