@@ -35,9 +35,8 @@ fn _main() -> io::Result<i32> {
         workspace.clone_repository(query);
       }
     }
-    ("list", Some(m)) => {
-      let format = m.value_of("format").unwrap_or("default").into();
-      workspace.show_repositories(format);
+    ("list", Some(_)) => {
+      workspace.show_repositories();
     }
     ("root", Some(m)) => {
       let all = m.is_present("all");
@@ -63,12 +62,7 @@ fn cli() -> App<'static, 'static> {
         .required(true)
         .help("repository name or URL")))
     .subcommand(SubCommand::with_name("list")
-      .about("List local repositories into the working directories")
-      .arg(Arg::with_name("format")
-        .short("f")
-        .long("format")
-        .takes_value(true)
-        .help("Output format of paths")))
+      .about("List local repositories into the working directories"))
     .subcommand(SubCommand::with_name("root")
       .about("Show repositories's root")
       .arg(Arg::with_name("all")

@@ -37,7 +37,7 @@ pub fn detect<P: AsRef<Path>>(path: P) -> Option<VCS> {
 pub struct Git;
 
 impl Git {
-  pub fn clone(url: Url, dest: &Path, depth: Option<i32>) -> Result<i32, io::Error> {
+  pub fn clone(url: &Url, dest: &Path, depth: Option<i32>) -> Result<i32, io::Error> {
     let depth = depth.map(|depth| format!("--depth={}", depth));
     let mut args = vec!["clone", url.as_str(), dest.to_str().unwrap()];
     if let Some(ref depth) = depth {
