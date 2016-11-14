@@ -12,6 +12,9 @@ build:
         name: Install dependencies
         code: |
           sudo apt-get install -y python
+          rustup self update
+          rustup toolchain remove stable
+          rustup toolchain install stable
           rustup default stable
           rustup target add arm-linux-androideabi
 
@@ -32,4 +35,5 @@ build:
     - script:
         name: Build and package the target
         code: |
+          cargo test --release --target=$HOST
           bash ./ci/make_package.sh

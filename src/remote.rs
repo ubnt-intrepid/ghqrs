@@ -1,22 +1,41 @@
-use url::{Url, ParseError};
+use url::Url;
+use std::path::{Path, PathBuf};
+use error::GhqError;
 
 
-/// creates an instance of Url from str.
-pub fn make_remote_url(s: &str) -> Result<Url, ParseError> {
-  Url::parse(s).or_else(|_| make_remote_url_from_relative(s))
+#[allow(dead_code)]
+#[cfg_attr(rustfmt, rustfmt_skip)]
+const KNOWN_HOSTS: &'static [(&'static str, usize)] = &[
+    ("github.com", 2)
+  , ("gist.github.com", 1)
+  , ("bitbucket.org", 2)
+  , ("gitlab.com", 2)
+];
+
+
+// parse the URL and determine the destination path of cloned repository.
+pub fn parse_url(url: &Url, root: &str) -> Result<PathBuf, GhqError> {
+  let host = url.host_str().ok_or("cannot retrieve host information")?;
+  let path = url.path().trim_left_matches("/").trim_right_matches(".git");
+
+  Ok(Path::new(root).join(host).join(path))
 }
 
-fn make_remote_url_from_relative(s: &str) -> Result<Url, ParseError> {
-  let paths: Vec<_> = s.split("/").collect();
+/// creates an instance of Url from str.
+pub fn make_remote_url(s: &str) -> Result<Url, GhqError> {
+  Url::parse(s).or_else(|_| make_remote_url_from_relative(s)).map_err(Into::into)
+}
 
-  let (host, user, repo) = match paths.len() {
-    3 => (paths[0], paths[1], paths[2]),
-    2 => ("github.com", paths[0], paths[1]),
-    1 => ("github.com", paths[0], paths[0]),
-    _ => panic!("'{}' is an unsupported pattern to resolve remote URL.", s),
+fn make_remote_url_from_relative(s: &str) -> Result<Url, GhqError> {
+  let path: Vec<_> = s.split("/").collect();
+  let path = match path.len() {
+    0 => return Err("unsupported pattern to resolve remote URL").map_err(Into::into),
+    1 => vec!["github.com", path[0], path[0]],
+    2 => vec!["github.com", path[0], path[1]],
+    _ => path,
   };
 
-  Url::parse(&format!("https://{}/{}/{}.git", host, user, repo))
+  Url::parse(&format!("{}://{}.git", "https", path.join("/"))).map_err(Into::into)
 }
 
 
@@ -42,4 +61,10 @@ fn only_project_name() {
 fn repository_url() {
   let url = make_remote_url("https://gitlab.com/funga-/pecopeco.git").unwrap();
   assert_eq!(url.as_str(), "https://gitlab.com/funga-/pecopeco.git");
+}
+
+#[test]
+fn long_path() {
+  let url = make_remote_url("github.com/hoge/fuga/foo/a/b/c").unwrap();
+  assert_eq!(url.as_str(), "https://github.com/hoge/fuga/foo/a/b/c.git");
 }

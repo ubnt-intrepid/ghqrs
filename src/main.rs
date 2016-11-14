@@ -7,6 +7,7 @@ extern crate url;
 extern crate walkdir;
 
 mod config;
+mod error;
 mod remote;
 mod vcs;
 mod workspace;
@@ -15,6 +16,8 @@ use std::io::{self, Write};
 use clap::{Arg, App, AppSettings, SubCommand};
 use config::Config;
 use workspace::Workspace;
+use error::GhqError;
+
 
 fn main() {
   match _main() {
@@ -23,16 +26,16 @@ fn main() {
   }
 }
 
-fn _main() -> io::Result<i32> {
-  let config = try!(Config::load());
+fn _main() -> Result<i32, GhqError> {
+  let config = Config::load()?;
   let workspace = Workspace::new(config);
 
   let matches = cli().get_matches();
   match matches.subcommand() {
     ("clone", Some(m)) => {
       let queries = m.values_of("query").unwrap();
-      for ref query in queries {
-        workspace.clone_repository(query);
+      for ref s in queries {
+        workspace.clone_from(s, None)?;
       }
     }
     ("list", Some(_)) => {
@@ -60,7 +63,10 @@ fn cli() -> App<'static, 'static> {
       .arg(Arg::with_name("query")
         .multiple(true)
         .required(true)
-        .help("repository name or URL")))
+        .help("repository name or URL"))
+      .arg(Arg::with_name("root")
+        .long("root")
+        .help("root directory of cloned repository")))
     .subcommand(SubCommand::with_name("list")
       .about("List local repositories into the working directories"))
     .subcommand(SubCommand::with_name("root")

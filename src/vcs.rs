@@ -64,7 +64,7 @@ fn wait_exec(cmd: &str, args: &[&str], curr_dir: Option<&Path>) -> Result<i32, i
     command.current_dir(curr_dir);
   }
 
-  let mut child = try!(command.spawn());
+  let mut child = command.spawn()?;
   child.wait()
     .and_then(|st| st.code().ok_or(io::Error::new(io::ErrorKind::Other, "")))
 }
