@@ -6,6 +6,7 @@ extern crate shellexpand;
 extern crate toml;
 extern crate rustc_serialize;
 
+mod config;
 mod remote;
 mod util;
 mod vcs;
