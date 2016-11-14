@@ -11,55 +11,41 @@ mod util;
 mod vcs;
 mod workspace;
 
+use std::io::{self, Write};
 use clap::{Arg, App, AppSettings, SubCommand};
 use workspace::Workspace;
 
-// output format
-enum ListFormat {
-  // relative path from host directory
-  // e.g. github.com/hoge/fuga
-  Default,
 
-  // absolute path
-  // e.g. /home/hoge/github.com/hoge/fuga or C:\Users\hoge\github.com\hoge\fuga
-  FullPath,
-
-  // only project name
-  // e.g. fuga
-  Unique,
-}
-
-impl<'a> From<&'a str> for ListFormat {
-  fn from(s: &str) -> ListFormat {
-    match s {
-      "full" => ListFormat::FullPath,
-      "unique" => ListFormat::Unique,
-      _ => ListFormat::Default,
-    }
+fn main() {
+  match _main() {
+    Ok(exitcode) => std::process::exit(exitcode),
+    Err(err) => writeln!(&mut io::stderr(), "IO Error: {}", err.to_string()).unwrap(),
   }
 }
 
+fn _main() -> io::Result<i32> {
+  let workspace = try!(Workspace::init());
 
-fn main() {
   let matches = cli().get_matches();
-
-  let exitcode = match matches.subcommand() {
+  match matches.subcommand() {
     ("clone", Some(m)) => {
-      let queries = m.values_of("query").unwrap().map(ToOwned::to_owned).collect();
-      command_clone(queries)
+      let queries = m.values_of("query").unwrap();
+      for ref query in queries {
+        workspace.clone_repository(query);
+      }
     }
     ("list", Some(m)) => {
       let format = m.value_of("format").unwrap_or("default").into();
-      command_list(format)
+      workspace.show_repositories(format);
     }
     ("root", Some(m)) => {
       let all = m.is_present("all");
-      command_root(all)
+      workspace.show_roots(all);
     }
     (_, _) => unreachable!(),
   };
 
-  std::process::exit(exitcode);
+  Ok(0)
 }
 
 fn cli() -> App<'static, 'static> {
@@ -88,48 +74,4 @@ fn cli() -> App<'static, 'static> {
         .short("a")
         .long("all")
         .help("Show all roots")))
-}
-
-
-fn command_clone(queries: Vec<String>) -> i32 {
-  let workspace = Workspace::init()
-    .unwrap_or_else(|e| panic!("failed to initialize workspace: {:?}", e));
-  let root = workspace.root().expect("cannot get the destination directory of targets");
-
-  for query in queries {
-    let url = remote::make_remote_url(&query).unwrap();
-    let repo = remote::RemoteRepository::new(url).unwrap();
-    repo.clone(&root, None).unwrap();
-  }
-  0
-}
-
-fn command_list(format: ListFormat) -> i32 {
-  let workspace = Workspace::init()
-    .unwrap_or_else(|e| panic!("failed to initialize workspace: {:?}", e));
-  for (_, repos) in workspace.repositories() {
-    for repo in repos {
-      let path = match format {
-        ListFormat::Default => repo.relative_path(),
-        ListFormat::FullPath => repo.absolute_path(),
-        ListFormat::Unique => repo.unique_path(),
-      };
-      println!("{}", path);
-    }
-  }
-
-  0
-}
-
-fn command_root(all: bool) -> i32 {
-  let workspace = Workspace::init()
-    .unwrap_or_else(|e| panic!("failed to initialize workspace: {:?}", e));
-  if all {
-    for root in workspace.roots() {
-      println!("{}", root);
-    }
-  } else {
-    println!("{}", workspace.root().unwrap());
-  }
-  0
 }

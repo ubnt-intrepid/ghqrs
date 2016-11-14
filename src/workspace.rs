@@ -1,12 +1,14 @@
 use std::collections::BTreeMap;
 use std::borrow::Cow;
 use std::env;
-use std::fs::File;
-use std::io::{self, Read};
+use std::io;
 use std::path::{Path, MAIN_SEPARATOR};
 use toml;
 use shellexpand;
 use walkdir::WalkDir;
+use vcs;
+use util;
+use remote;
 
 const CONFIG_CANDIDATES: &'static [&'static str] =
   &["~/.ghqconfig", "~/.config/ghq/config", ".ghqconfig"];
@@ -18,7 +20,7 @@ struct Config {
 
 impl Config {
   pub fn load() -> Result<Config, io::Error> {
-    let content = try!(read_file_if_exists(CONFIG_CANDIDATES))
+    let content = try!(util::read_file_if_exists(CONFIG_CANDIDATES))
       .expect("No configuration file found.");
     let mut config: Config = toml::decode_str(&content).unwrap();
 
@@ -38,63 +40,110 @@ impl Config {
 
 pub struct Workspace {
   config: Config,
+  repos: BTreeMap<String, Vec<Repository>>,
 }
 
 impl Workspace {
   pub fn init() -> Result<Workspace, io::Error> {
     let config = try!(Config::load());
-    Ok(Workspace { config: config })
-  }
 
-  pub fn roots(&self) -> &[String] {
-    self.config.roots.as_slice()
-  }
-
-  pub fn root(&self) -> Option<String> {
-    self.config.roots.iter().next().cloned()
-  }
-
-  pub fn repositories(&self) -> BTreeMap<String, Vec<Repository>> {
-    let mut dst = BTreeMap::new();
-
-    for root in self.config.roots.iter() {
-      let mut repos = Vec::new();
-      for entry in WalkDir::new(&root)
-        .follow_links(true)
-        .min_depth(2)
-        .max_depth(3)
-        .into_iter()
-        .filter_map(|e| e.ok()) {
-
-        let path = format!("{}", entry.path().display())
-          .replace(&format!("{}{}", root, MAIN_SEPARATOR), "");
-
-        let vcs = vec![".git", ".svn", ".hg", "_darcs"]
-          .into_iter()
-          .find(|&vcs| entry.path().join(vcs).exists())
-          .map(|e| format!("{}", &e[1..]));
-
-        if vcs.is_some() {
-          let repo = Repository {
-            vcs: vcs.unwrap(),
-            root: root.to_owned(),
-            path: path.replace("\\", "/"),
-          };
-          repos.push(repo);
-        }
-      }
-
-      dst.insert(root.to_owned(), repos);
+    let mut repos = BTreeMap::new();
+    for root in &config.roots {
+      let repo = get_repositories(&root);
+      repos.insert(root.to_owned(), repo);
     }
 
-    dst
+    Ok(Workspace {
+      config: config,
+      repos: repos,
+    })
+  }
+
+  pub fn show_roots(&self, all: bool) {
+    if all {
+      for root in &self.config.roots {
+        println!("{}", root);
+      }
+    } else if let Some(ref root) = self.config.roots.iter().next() {
+      println!("{}", root);
+    }
+  }
+
+  pub fn clone_repository(&self, query: &str) {
+    let url = remote::make_remote_url(query).unwrap();
+    if let Some(ref root) = self.config.roots.iter().next() {
+      let repo = remote::RemoteRepository::new(url).unwrap();
+      repo.clone(&root, None).unwrap();
+    }
+  }
+
+  pub fn show_repositories(&self, format: ListFormat) {
+    for (_, repos) in &self.repos {
+      for repo in repos {
+        let path = match format {
+          ListFormat::Default => repo.relative_path(),
+          ListFormat::FullPath => repo.absolute_path(),
+          ListFormat::Unique => repo.unique_path(),
+        };
+        println!("{}", path);
+      }
+    }
   }
 }
 
+fn get_repositories(root: &str) -> Vec<Repository> {
+  let mut repos = Vec::new();
+  for entry in WalkDir::new(&root)
+    .follow_links(true)
+    .min_depth(2)
+    .max_depth(3)
+    .into_iter()
+    .filter_map(|e| e.ok()) {
+
+    let path = format!("{}", entry.path().display())
+      .replace(&format!("{}{}", root, MAIN_SEPARATOR), "");
+
+    if let Some(vcs) = vcs::detect(entry.path()) {
+      let repo = Repository {
+        vcs: vcs,
+        root: root.to_owned(),
+        path: path.replace("\\", "/"),
+      };
+      repos.push(repo);
+    }
+  }
+
+  repos
+}
+
+// output format
+pub enum ListFormat {
+  // relative path from host directory
+  // e.g. github.com/hoge/fuga
+  Default,
+
+  // absolute path
+  // e.g. /home/hoge/github.com/hoge/fuga or C:\Users\hoge\github.com\hoge\fuga
+  FullPath,
+
+  // only project name
+  // e.g. fuga
+  Unique,
+}
+
+impl<'a> From<&'a str> for ListFormat {
+  fn from(s: &str) -> ListFormat {
+    match s {
+      "full" => ListFormat::FullPath,
+      "unique" => ListFormat::Unique,
+      _ => ListFormat::Default,
+    }
+  }
+}
 
 #[derive(Debug)]
 pub struct Repository {
-  vcs: String,
+  vcs: vcs::VCS,
   root: String,
   path: String,
 }
@@ -124,22 +173,4 @@ impl Repository {
   pub fn relative_path(&self) -> String {
     self.path.clone()
   }
-}
-
-
-// Read the content of a file in `paths`
-fn read_file_if_exists(paths: &[&str]) -> Result<Option<String>, io::Error> {
-  for path in paths {
-    // expand the candidate of path.
-    let path = shellexpand::full(path).unwrap().into_owned();
-    let path = Path::new(&path);
-
-    if path.exists() && path.is_file() {
-      let mut content = String::new();
-      return File::open(path)
-        .and_then(|ref mut file| file.read_to_string(&mut content))
-        .and(Ok(Some(content)));
-    }
-  }
-  Ok(None)
 }
