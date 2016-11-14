@@ -4,29 +4,27 @@ use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 use walkdir::WalkDir;
 use url::Url;
 
-use config::Config;
+use config;
 use vcs;
 use remote;
 
 pub struct Workspace {
-  config: Config,
+  config: config::Config,
   repos: BTreeMap<String, Vec<Repository>>,
 }
 
 impl Workspace {
-  pub fn init() -> Result<Workspace, io::Error> {
-    let config = try!(Config::load());
-
+  pub fn new(config: config::Config) -> Workspace {
     let mut repos = BTreeMap::new();
     for root in &config.roots {
       let repo = get_repositories(&root);
       repos.insert(root.to_owned(), repo);
     }
 
-    Ok(Workspace {
+    Workspace {
       config: config,
       repos: repos,
-    })
+    }
   }
 
   pub fn show_roots(&self, all: bool) {

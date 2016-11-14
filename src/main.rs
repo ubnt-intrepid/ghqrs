@@ -14,8 +14,8 @@ mod workspace;
 
 use std::io::{self, Write};
 use clap::{Arg, App, AppSettings, SubCommand};
+use config::Config;
 use workspace::Workspace;
-
 
 fn main() {
   match _main() {
@@ -25,7 +25,8 @@ fn main() {
 }
 
 fn _main() -> io::Result<i32> {
-  let workspace = try!(Workspace::init());
+  let config = try!(Config::load());
+  let workspace = Workspace::new(config);
 
   let matches = cli().get_matches();
   match matches.subcommand() {
