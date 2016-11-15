@@ -4,13 +4,13 @@ use walkdir::{DirEntry, WalkDir, WalkDirIterator};
 
 use config;
 use vcs;
-use remote;
+use repository;
 use error::GhqError;
 
 
 pub struct Workspace {
   config: config::Config,
-  repos: BTreeMap<String, Vec<Repository>>,
+  repos: BTreeMap<String, Vec<repository::Repository>>,
 }
 
 impl Workspace {
@@ -23,7 +23,7 @@ impl Workspace {
         .into_iter()
         .filter_entry(|entry| !is_vcs_subdir(entry))
         .filter_map(|entry| entry.ok())
-        .filter_map(|entry| Repository::new(&entry).ok())
+        .filter_map(|entry| repository::Repository::from_local(entry.path()).ok())
         .collect();
       repos.insert(root.to_owned(), repo);
     }
@@ -61,7 +61,7 @@ impl Workspace {
       return Ok(());
     }
 
-    let (url, host, path) = remote::parse_token(s)?;
+    let (url, host, path) = repository::parse_token(s)?;
     let dest = Path::new(root).join(host).join(path);
 
     if dest.exists() {
@@ -78,22 +78,4 @@ fn is_vcs_subdir(entry: &DirEntry) -> bool {
   [".git", ".svn", ".hg", "_darcs"]
     .into_iter()
     .any(|vcs| entry.path().join("..").join(vcs).exists())
-}
-
-#[allow(dead_code)]
-#[derive(Debug)]
-pub struct Repository {
-  vcs: vcs::VCS,
-  path: String,
-}
-
-impl Repository {
-  fn new(entry: &DirEntry) -> Result<Repository, ()> {
-    let vcs = vcs::detect(entry.path()).ok_or(())?;
-    let path = entry.path().to_str().ok_or(())?;
-    Ok(Repository {
-      vcs: vcs,
-      path: path.to_owned(),
-    })
-  }
 }

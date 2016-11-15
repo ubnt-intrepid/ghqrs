@@ -1,5 +1,7 @@
+use std::path::Path;
 use url::Url;
 use error::GhqError;
+use vcs;
 
 
 #[allow(dead_code)]
@@ -10,6 +12,25 @@ const KNOWN_HOSTS: &'static [(&'static str, usize)] = &[
   , ("bitbucket.org", 2)
   , ("gitlab.com", 2)
 ];
+
+
+#[allow(dead_code)]
+#[derive(Debug)]
+pub struct Repository {
+  vcs: vcs::VCS,
+  pub path: String,
+}
+
+impl Repository {
+  pub fn from_local(path: &Path) -> Result<Repository, ()> {
+    let vcs = vcs::detect(path).ok_or(())?;
+    let path = path.to_str().map(ToOwned::to_owned).ok_or(())?;
+    Ok(Repository {
+      vcs: vcs,
+      path: path,
+    })
+  }
+}
 
 
 pub fn parse_token(s: &str) -> Result<(Url, String, String), GhqError> {
