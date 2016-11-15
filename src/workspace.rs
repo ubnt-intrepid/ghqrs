@@ -61,10 +61,9 @@ impl Workspace {
       return Ok(());
     }
 
-    // parse query string & make URL
-    let url = remote::make_remote_url(s).unwrap();
+    let (url, path) = remote::parse_token(s)?;
+    let dest = Path::new(root).join(path);
 
-    let dest = remote::parse_url(&url, root)?;
     if dest.exists() {
       println!("The target has already existed: {}", dest.display());
       return Ok(());

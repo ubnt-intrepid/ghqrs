@@ -1,5 +1,4 @@
 use url::Url;
-use std::path::{Path, PathBuf};
 use error::GhqError;
 
 
@@ -13,20 +12,17 @@ const KNOWN_HOSTS: &'static [(&'static str, usize)] = &[
 ];
 
 
-// parse the URL and determine the destination path of cloned repository.
-pub fn parse_url(url: &Url, root: &str) -> Result<PathBuf, GhqError> {
+pub fn parse_token(s: &str) -> Result<(Url, String), GhqError> {
+  let url = Url::parse(s).or_else(|_| make_remote_url(s))?;
+
   let host = url.host_str().ok_or("cannot retrieve host information")?;
   let path = url.path().trim_left_matches("/").trim_right_matches(".git");
+  let path = format!("{}/{}", host, path);
 
-  Ok(Path::new(root).join(host).join(path))
+  Ok((url, path))
 }
 
-/// creates an instance of Url from str.
-pub fn make_remote_url(s: &str) -> Result<Url, GhqError> {
-  Url::parse(s).or_else(|_| make_remote_url_from_relative(s)).map_err(Into::into)
-}
-
-fn make_remote_url_from_relative(s: &str) -> Result<Url, GhqError> {
+fn make_remote_url(s: &str) -> Result<Url, GhqError> {
   let path: Vec<_> = s.split("/").collect();
   let path = match path.len() {
     0 => return Err("unsupported pattern to resolve remote URL").map_err(Into::into),
