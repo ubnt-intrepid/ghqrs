@@ -63,50 +63,45 @@ fn make_remote_url(s: &str) -> Result<Url, GhqError> {
 mod test_parse_token {
   use super::parse_token;
 
-  fn assert_helper(s: &str, _url: &str, _host: &str, _path: &str) {
-    let (url, host, path) = parse_token(s).unwrap();
-    assert_eq!(url.as_str(), _url);
-    assert_eq!(host, _host);
-    assert_eq!(path, _path);
+  macro_rules! def_test {
+    ($name:ident, $s:expr, $url:expr, $host:expr, $path:expr) => {
+      #[test]
+      fn $name() {
+        let (url, host, path) = parse_token($s).unwrap();
+        assert_eq!(url.as_str(), $url);
+        assert_eq!(host, $host);
+        assert_eq!(path, $path);
+      }
+    }
   }
 
-  #[test]
-  fn user_project() {
-    assert_helper("hoge/fuga",
-                  "https://github.com/hoge/fuga.git",
-                  "github.com",
-                  "hoge/fuga");
-  }
+  def_test!(user_project,
+            "hoge/fuga",
+            "https://github.com/hoge/fuga.git",
+            "github.com",
+            "hoge/fuga");
 
-  #[test]
-  fn domain_user_project() {
-    assert_helper("github.com/hoge/fuga",
-                  "https://github.com/hoge/fuga.git",
-                  "github.com",
-                  "hoge/fuga");
-  }
+  def_test!(domain_user_project,
+            "github.com/hoge/fuga",
+            "https://github.com/hoge/fuga.git",
+            "github.com",
+            "hoge/fuga");
 
-  #[test]
-  fn only_project_name() {
-    assert_helper("fuga",
-                  "https://github.com/fuga/fuga.git",
-                  "github.com",
-                  "fuga/fuga");
-  }
+  def_test!(only_project_name,
+            "fuga",
+            "https://github.com/fuga/fuga.git",
+            "github.com",
+            "fuga/fuga");
 
-  #[test]
-  fn repository_url() {
-    assert_helper("https://gitlab.com/funga-/pecopeco.git",
-                  "https://gitlab.com/funga-/pecopeco.git",
-                  "gitlab.com",
-                  "funga-/pecopeco");
-  }
+  def_test!(repository_url,
+            "https://gitlab.com/funga-/pecopeco.git",
+            "https://gitlab.com/funga-/pecopeco.git",
+            "gitlab.com",
+            "funga-/pecopeco");
 
-  #[test]
-  fn long_path() {
-    assert_helper("github.com/hoge/fuga/foo/a/b/c",
-                  "https://github.com/hoge/fuga/foo/a/b/c.git",
-                  "github.com",
-                  "hoge/fuga/foo/a/b/c");
-  }
+  def_test!(long_path,
+            "github.com/hoge/fuga/foo/a/b/c",
+            "https://github.com/hoge/fuga.git",
+            "github.com",
+            "hoge/fuga/foo/a/b/c");
 }
