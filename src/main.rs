@@ -1,19 +1,22 @@
 extern crate clap;
-extern crate walkdir;
 extern crate regex;
-extern crate url;
+extern crate rustc_serialize;
 extern crate shellexpand;
 extern crate toml;
-extern crate rustc_serialize;
+extern crate url;
+extern crate walkdir;
 
+mod config;
+mod error;
 mod remote;
-mod util;
 mod vcs;
 mod workspace;
 
 use std::io::{self, Write};
 use clap::{Arg, App, AppSettings, SubCommand};
+use config::Config;
 use workspace::Workspace;
+use error::GhqError;
 
 
 fn main() {
@@ -23,20 +26,20 @@ fn main() {
   }
 }
 
-fn _main() -> io::Result<i32> {
-  let workspace = try!(Workspace::init());
+fn _main() -> Result<i32, GhqError> {
+  let config = Config::load()?;
+  let workspace = Workspace::new(config);
 
   let matches = cli().get_matches();
   match matches.subcommand() {
     ("clone", Some(m)) => {
       let queries = m.values_of("query").unwrap();
-      for ref query in queries {
-        workspace.clone_repository(query);
+      for ref s in queries {
+        workspace.clone_from(s, None)?;
       }
     }
-    ("list", Some(m)) => {
-      let format = m.value_of("format").unwrap_or("default").into();
-      workspace.show_repositories(format);
+    ("list", Some(_)) => {
+      workspace.show_repositories();
     }
     ("root", Some(m)) => {
       let all = m.is_present("all");
@@ -60,14 +63,12 @@ fn cli() -> App<'static, 'static> {
       .arg(Arg::with_name("query")
         .multiple(true)
         .required(true)
-        .help("repository name or URL")))
+        .help("repository name or URL"))
+      .arg(Arg::with_name("root")
+        .long("root")
+        .help("root directory of cloned repository")))
     .subcommand(SubCommand::with_name("list")
-      .about("List local repositories into the working directories")
-      .arg(Arg::with_name("format")
-        .short("f")
-        .long("format")
-        .takes_value(true)
-        .help("Output format of paths")))
+      .about("List local repositories into the working directories"))
     .subcommand(SubCommand::with_name("root")
       .about("Show repositories's root")
       .arg(Arg::with_name("all")

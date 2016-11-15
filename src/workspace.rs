@@ -1,62 +1,37 @@
 use std::collections::BTreeMap;
-use std::borrow::Cow;
-use std::env;
-use std::io;
-use std::path::{Path, MAIN_SEPARATOR};
-use toml;
-use shellexpand;
-use walkdir::WalkDir;
+use std::path::Path;
+use walkdir::{DirEntry, WalkDir, WalkDirIterator};
+
+use config;
 use vcs;
-use util;
 use remote;
+use error::GhqError;
 
-const CONFIG_CANDIDATES: &'static [&'static str] =
-  &["~/.ghqconfig", "~/.config/ghq/config", ".ghqconfig"];
-
-#[derive(RustcDecodable, Default)]
-struct Config {
-  roots: Vec<String>,
-}
-
-impl Config {
-  pub fn load() -> Result<Config, io::Error> {
-    let content = try!(util::read_file_if_exists(CONFIG_CANDIDATES))
-      .expect("No configuration file found.");
-    let mut config: Config = toml::decode_str(&content).unwrap();
-
-    if config.roots.len() == 0 {
-      let home_dir = env::home_dir().unwrap();
-      let root_dir = home_dir.join(".ghq").to_str().map(ToOwned::to_owned).unwrap();
-      config.roots = vec![root_dir];
-    }
-
-    for i in 0..(config.roots.len()) {
-      config.roots[i] = shellexpand::full(&config.roots[i]).map(Cow::into_owned).unwrap();
-    }
-
-    Ok(config)
-  }
-}
 
 pub struct Workspace {
-  config: Config,
+  config: config::Config,
   repos: BTreeMap<String, Vec<Repository>>,
 }
 
 impl Workspace {
-  pub fn init() -> Result<Workspace, io::Error> {
-    let config = try!(Config::load());
-
+  pub fn new(config: config::Config) -> Workspace {
     let mut repos = BTreeMap::new();
+
     for root in &config.roots {
-      let repo = get_repositories(&root);
+      let repo = WalkDir::new(&root)
+        .follow_links(true)
+        .into_iter()
+        .filter_entry(|entry| !is_vcs_subdir(entry))
+        .filter_map(|entry| entry.ok())
+        .filter_map(|entry| Repository::new(&entry).ok())
+        .collect();
       repos.insert(root.to_owned(), repo);
     }
 
-    Ok(Workspace {
+    Workspace {
       config: config,
       repos: repos,
-    })
+    }
   }
 
   pub fn show_roots(&self, all: bool) {
@@ -69,108 +44,57 @@ impl Workspace {
     }
   }
 
-  pub fn clone_repository(&self, query: &str) {
-    let url = remote::make_remote_url(query).unwrap();
-    if let Some(ref root) = self.config.roots.iter().next() {
-      let repo = remote::RemoteRepository::new(url).unwrap();
-      repo.clone(&root, None).unwrap();
-    }
-  }
-
-  pub fn show_repositories(&self, format: ListFormat) {
+  pub fn show_repositories(&self) {
     for (_, repos) in &self.repos {
       for repo in repos {
-        let path = match format {
-          ListFormat::Default => repo.relative_path(),
-          ListFormat::FullPath => repo.absolute_path(),
-          ListFormat::Unique => repo.unique_path(),
-        };
-        println!("{}", path);
+        println!("{}", repo.path);
       }
     }
   }
+
+  // clone a remote repository into the workspace.
+  pub fn clone_from(&self, s: &str, root: Option<&str>) -> Result<(), GhqError> {
+    // get the path of root directory
+    let root = root.or(self.config.roots.iter().next().map(|s| s.as_str())).unwrap_or("");
+    if !Path::new(root).exists() {
+      println!("The root directory does not exist: {}", root);
+      return Ok(());
+    }
+
+    // parse query string & make URL
+    let url = remote::make_remote_url(s).unwrap();
+
+    let dest = remote::parse_url(&url, root)?;
+    if dest.exists() {
+      println!("The target has already existed: {}", dest.display());
+      return Ok(());
+    }
+
+    println!("clone '{}' into '{}'", url.as_str(), dest.display());
+    vcs::Git::clone(&url, dest.as_path(), None).map(|_| ()).map_err(Into::into)
+  }
 }
 
-fn get_repositories(root: &str) -> Vec<Repository> {
-  let mut repos = Vec::new();
-  for entry in WalkDir::new(&root)
-    .follow_links(true)
-    .min_depth(2)
-    .max_depth(3)
+fn is_vcs_subdir(entry: &DirEntry) -> bool {
+  [".git", ".svn", ".hg", "_darcs"]
     .into_iter()
-    .filter_map(|e| e.ok()) {
-
-    let path = format!("{}", entry.path().display())
-      .replace(&format!("{}{}", root, MAIN_SEPARATOR), "");
-
-    if let Some(vcs) = vcs::detect(entry.path()) {
-      let repo = Repository {
-        vcs: vcs,
-        root: root.to_owned(),
-        path: path.replace("\\", "/"),
-      };
-      repos.push(repo);
-    }
-  }
-
-  repos
+    .any(|vcs| entry.path().join("..").join(vcs).exists())
 }
 
-// output format
-pub enum ListFormat {
-  // relative path from host directory
-  // e.g. github.com/hoge/fuga
-  Default,
-
-  // absolute path
-  // e.g. /home/hoge/github.com/hoge/fuga or C:\Users\hoge\github.com\hoge\fuga
-  FullPath,
-
-  // only project name
-  // e.g. fuga
-  Unique,
-}
-
-impl<'a> From<&'a str> for ListFormat {
-  fn from(s: &str) -> ListFormat {
-    match s {
-      "full" => ListFormat::FullPath,
-      "unique" => ListFormat::Unique,
-      _ => ListFormat::Default,
-    }
-  }
-}
-
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct Repository {
   vcs: vcs::VCS,
-  root: String,
   path: String,
 }
 
 impl Repository {
-  #[cfg(windows)]
-  pub fn absolute_path(&self) -> String {
-    let repo_path = Path::new(&self.root).join(&self.path);
-    format!("{}", repo_path.display()).replace("/", "\\")
-  }
-
-  #[cfg(not(windows))]
-  pub fn absolute_path(&self) -> String {
-    let repo_path = Path::new(&self.root).join(&self.path);
-    format!("{}", repo_path.display())
-  }
-
-  pub fn unique_path(&self) -> String {
-    Path::new(&self.path)
-      .file_name()
-      .unwrap()
-      .to_str()
-      .unwrap()
-      .to_owned()
-  }
-
-  pub fn relative_path(&self) -> String {
-    self.path.clone()
+  fn new(entry: &DirEntry) -> Result<Repository, ()> {
+    let vcs = vcs::detect(entry.path()).ok_or(())?;
+    let path = entry.path().to_str().ok_or(())?;
+    Ok(Repository {
+      vcs: vcs,
+      path: path.to_owned(),
+    })
   }
 }
