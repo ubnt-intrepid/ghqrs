@@ -35,5 +35,4 @@ build:
     - script:
         name: Build and package the target
         code: |
-          cargo test --release --target=$HOST
           bash ./ci/make_package.sh
