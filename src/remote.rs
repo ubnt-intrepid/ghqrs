@@ -12,16 +12,13 @@ const KNOWN_HOSTS: &'static [(&'static str, usize)] = &[
 ];
 
 
-pub fn parse_token(s: &str) -> Result<(Url, String), GhqError> {
+pub fn parse_token(s: &str) -> Result<(Url, String, String), GhqError> {
   let url = make_remote_url(s)?;
 
-  let path = {
-    let host = url.host_str().ok_or("cannot retrieve host information")?;
-    let path = url.path().trim_left_matches("/").trim_right_matches(".git");
-    format!("{}/{}", host, path)
-  };
+  let host = url.host_str().ok_or("cannot retrieve host information").map(ToOwned::to_owned)?;
+  let path = url.path().trim_left_matches("/").trim_right_matches(".git").to_owned();
 
-  Ok((url, path))
+  Ok((url, host, path))
 }
 
 fn make_remote_url(s: &str) -> Result<Url, GhqError> {
@@ -41,32 +38,54 @@ fn make_remote_url(s: &str) -> Result<Url, GhqError> {
 }
 
 
-#[test]
-fn user_project() {
-  let url = make_remote_url("hoge/fuga").unwrap();
-  assert_eq!(url.as_str(), "https://github.com/hoge/fuga.git");
-}
+#[cfg(test)]
+mod test_parse_token {
+  use super::parse_token;
 
-#[test]
-fn domain_user_project() {
-  let url = make_remote_url("github.com/hoge/fuga").unwrap();
-  assert_eq!(url.as_str(), "https://github.com/hoge/fuga.git");
-}
+  fn assert_helper(s: &str, _url: &str, _host: &str, _path: &str) {
+    let (url, host, path) = parse_token(s).unwrap();
+    assert_eq!(url.as_str(), _url);
+    assert_eq!(host, _host);
+    assert_eq!(path, _path);
+  }
 
-#[test]
-fn only_project_name() {
-  let url = make_remote_url("fuga").unwrap();
-  assert_eq!(url.as_str(), "https://github.com/fuga/fuga.git");
-}
+  #[test]
+  fn user_project() {
+    assert_helper("hoge/fuga",
+                  "https://github.com/hoge/fuga.git",
+                  "github.com",
+                  "hoge/fuga");
+  }
 
-#[test]
-fn repository_url() {
-  let url = make_remote_url("https://gitlab.com/funga-/pecopeco.git").unwrap();
-  assert_eq!(url.as_str(), "https://gitlab.com/funga-/pecopeco.git");
-}
+  #[test]
+  fn domain_user_project() {
+    assert_helper("github.com/hoge/fuga",
+                  "https://github.com/hoge/fuga.git",
+                  "github.com",
+                  "hoge/fuga");
+  }
 
-#[test]
-fn long_path() {
-  let url = make_remote_url("github.com/hoge/fuga/foo/a/b/c").unwrap();
-  assert_eq!(url.as_str(), "https://github.com/hoge/fuga/foo/a/b/c.git");
+  #[test]
+  fn only_project_name() {
+    assert_helper("fuga",
+                  "https://github.com/fuga/fuga.git",
+                  "github.com",
+                  "fuga/fuga");
+  }
+
+  #[test]
+  fn repository_url() {
+    assert_helper("https://gitlab.com/funga-/pecopeco.git",
+                  "https://gitlab.com/funga-/pecopeco.git",
+                  "gitlab.com",
+                  "funga-/pecopeco");
+  }
+
+  #[test]
+  fn long_path() {
+    assert_helper("github.com/hoge/fuga/foo/a/b/c",
+                  "https://github.com/hoge/fuga/foo/a/b/c.git",
+                  "github.com",
+                  "hoge/fuga/foo/a/b/c");
+  }
 }

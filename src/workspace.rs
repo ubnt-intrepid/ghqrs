@@ -61,8 +61,8 @@ impl Workspace {
       return Ok(());
     }
 
-    let (url, path) = remote::parse_token(s)?;
-    let dest = Path::new(root).join(path);
+    let (url, host, path) = remote::parse_token(s)?;
+    let dest = Path::new(root).join(host).join(path);
 
     if dest.exists() {
       println!("The target has already existed: {}", dest.display());
