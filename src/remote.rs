@@ -13,16 +13,22 @@ const KNOWN_HOSTS: &'static [(&'static str, usize)] = &[
 
 
 pub fn parse_token(s: &str) -> Result<(Url, String), GhqError> {
-  let url = Url::parse(s).or_else(|_| make_remote_url(s))?;
+  let url = make_remote_url(s)?;
 
-  let host = url.host_str().ok_or("cannot retrieve host information")?;
-  let path = url.path().trim_left_matches("/").trim_right_matches(".git");
-  let path = format!("{}/{}", host, path);
+  let path = {
+    let host = url.host_str().ok_or("cannot retrieve host information")?;
+    let path = url.path().trim_left_matches("/").trim_right_matches(".git");
+    format!("{}/{}", host, path)
+  };
 
   Ok((url, path))
 }
 
 fn make_remote_url(s: &str) -> Result<Url, GhqError> {
+  if let Ok(url) = Url::parse(s) {
+    return Ok(url);
+  }
+
   let path: Vec<_> = s.split("/").collect();
   let path = match path.len() {
     0 => return Err("unsupported pattern to resolve remote URL").map_err(Into::into),
