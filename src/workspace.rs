@@ -3,14 +3,13 @@ use std::path::Path;
 use walkdir::{DirEntry, WalkDir, WalkDirIterator};
 
 use config;
-use vcs;
-use repository;
+use repository::*;
 use error::GhqError;
 
 
 pub struct Workspace {
   config: config::Config,
-  repos: BTreeMap<String, Vec<repository::Repository>>,
+  repos: BTreeMap<String, Vec<Repository>>,
 }
 
 impl Workspace {
@@ -21,9 +20,10 @@ impl Workspace {
       let repo = WalkDir::new(&root)
         .follow_links(true)
         .into_iter()
-        .filter_entry(|entry| !is_vcs_subdir(entry))
+        .filter_entry(|entry| !is_vcs_subdir(entry) && entry.path().is_dir())
         .filter_map(|entry| entry.ok())
-        .filter_map(|entry| repository::Repository::from_local(entry.path()).ok())
+        .filter_map(|ref entry| entry.path().strip_prefix(root).ok().map(|ref p| p.to_path_buf()))
+        .filter_map(|ref path| Repository::from_local(path).ok())
         .collect();
       repos.insert(root.to_owned(), repo);
     }
@@ -45,9 +45,9 @@ impl Workspace {
   }
 
   pub fn show_repositories(&self) {
-    for (_, repos) in &self.repos {
+    for (root, repos) in &self.repos {
       for repo in repos {
-        println!("{}", repo.path);
+        println!("{}", repo.local_path(root).display());
       }
     }
   }
@@ -61,16 +61,7 @@ impl Workspace {
       return Ok(());
     }
 
-    let (url, host, path) = repository::parse_token(s)?;
-    let dest = Path::new(root).join(host).join(path);
-
-    if dest.exists() {
-      println!("The target has already existed: {}", dest.display());
-      return Ok(());
-    }
-
-    println!("clone '{}' into '{}'", url.as_str(), dest.display());
-    vcs::Git::clone(&url, dest.as_path(), None).map(|_| ()).map_err(Into::into)
+    Repository::from_remote(s)?.clone_into(root)
   }
 }
 

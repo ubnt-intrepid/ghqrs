@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use url::Url;
 use error::GhqError;
 use vcs;
@@ -14,63 +14,101 @@ const KNOWN_HOSTS: &'static [(&'static str, usize)] = &[
 ];
 
 
-#[allow(dead_code)]
 #[derive(Debug)]
 pub struct Repository {
-  vcs: vcs::VCS,
-  pub path: String,
+  url: Option<Url>,
+  host: String,
+  path: String,
 }
 
 impl Repository {
-  pub fn from_local(path: &Path) -> Result<Repository, ()> {
-    let vcs = vcs::detect(path).ok_or(())?;
-    let path = path.to_str().map(ToOwned::to_owned).ok_or(())?;
+  pub fn from_local(path: &Path) -> Result<Repository, GhqError> {
+    let _ = vcs::detect(path);
+
+    let path = path.to_string_lossy().into_owned();
+    let splitted: Vec<_> = path.splitn(3, '/').collect();
+    if splitted.len() < 3 {
+      return Err("").map_err(Into::into);
+    }
+
+    let host = splitted[0].to_owned();
+    let path = Vec::from(&splitted[1..]).join("/");
+
     Ok(Repository {
-      vcs: vcs,
+      url: None,
+      host: host,
       path: path,
     })
   }
-}
 
+  pub fn from_remote(s: &str) -> Result<Repository, GhqError> {
+    if let Ok(url) = Url::parse(s) {
+      let host = url.host_str().ok_or("cannot retrieve host information")?.to_owned();
+      let path = url.path().trim_left_matches("/").trim_right_matches(".git").to_owned();
+      // TODO: check if given URL is valid
 
-pub fn parse_token(s: &str) -> Result<(Url, String, String), GhqError> {
-  let url = make_remote_url(s)?;
+      Ok(Repository {
+        url: Some(url),
+        host: host,
+        path: path,
+      })
 
-  let host = url.host_str().ok_or("cannot retrieve host information").map(ToOwned::to_owned)?;
-  let path = url.path().trim_left_matches("/").trim_right_matches(".git").to_owned();
+    } else {
+      let path: Vec<_> = s.split("/").collect();
+      let (host, path) = match path.len() {
+        0 => Err("unsupported pattern to resolve remote URL")?,
+        1 => ("github.com".to_owned(), vec![path[0], path[0]]),
+        2 => ("github.com".to_owned(), vec![path[0], path[1]]),
+        _ => (path[0].to_owned(), Vec::from(&path[1..])),
+      };
 
-  Ok((url, host, path))
-}
+      let url = Url::parse(&format!("{}://{}/{}.git",
+                                    "https",
+                                    host,
+                                    path.iter().take(2).cloned().collect::<Vec<_>>().join("/")))?;
 
-fn make_remote_url(s: &str) -> Result<Url, GhqError> {
-  if let Ok(url) = Url::parse(s) {
-    return Ok(url);
+      Ok(Repository {
+        url: Some(url),
+        host: host,
+        path: path.join("/"),
+      })
+    }
   }
 
-  let path: Vec<_> = s.split("/").collect();
-  let path = match path.len() {
-    0 => return Err("unsupported pattern to resolve remote URL").map_err(Into::into),
-    1 => vec!["github.com", path[0], path[0]],
-    2 => vec!["github.com", path[0], path[1]],
-    _ => path,
-  };
+  pub fn local_path(&self, root: &str) -> PathBuf {
+    Path::new(root).join(&self.host).join(&self.path)
+  }
 
-  Url::parse(&format!("{}://{}.git", "https", path.join("/"))).map_err(Into::into)
+  pub fn clone_into(&self, root: &str) -> Result<(), GhqError> {
+    if let Some(ref url) = self.url {
+      let dest = Path::new(root).join(&self.host).join(&self.path);
+
+      if dest.exists() {
+        println!("The target has already existed: {}", dest.display());
+        return Ok(());
+      }
+
+      println!("clone '{}' into '{}'", url.as_str(), dest.display());
+      vcs::Git::clone(url, dest.as_path(), None).map(|_| ()).map_err(Into::into)
+    } else {
+      Ok(())
+    }
+  }
 }
 
 
 #[cfg(test)]
-mod test_parse_token {
-  use super::parse_token;
+mod test_from_remote {
+  use super::Repository;
 
   macro_rules! def_test {
     ($name:ident, $s:expr, $url:expr, $host:expr, $path:expr) => {
       #[test]
       fn $name() {
-        let (url, host, path) = parse_token($s).unwrap();
-        assert_eq!(url.as_str(), $url);
-        assert_eq!(host, $host);
-        assert_eq!(path, $path);
+        let repo = Repository::from_remote($s).unwrap();
+        assert_eq!(repo.url.unwrap().as_str(), $url);
+        assert_eq!(repo.host, $host);
+        assert_eq!(repo.path, $path);
       }
     }
   }
