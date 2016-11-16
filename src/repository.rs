@@ -23,13 +23,13 @@ pub struct Repository {
 }
 
 impl Repository {
-  pub fn from_local(path: &Path) -> Result<Repository, GhqError> {
+  pub fn from_local<P: AsRef<Path>>(path: P) -> Result<Repository, GhqError> {
     // TODO use detected VCS
-    let _ = VCS::detect(path);
+    let _ = VCS::detect(path.as_ref());
 
-    let path = path.to_string_lossy().into_owned();
-    let splitted: Vec<_> = path.splitn(3, '/').collect();
-    if splitted.len() < 3 {
+    let path = path.as_ref().to_string_lossy().into_owned();
+    let splitted: Vec<_> = path.splitn(2, '/').collect();
+    if splitted.len() < 2 {
       return Err("").map_err(Into::into);
     }
 
@@ -98,6 +98,28 @@ impl Repository {
     }
 
     Ok(())
+  }
+}
+
+
+#[cfg(test)]
+mod test_from_local {
+  use super::Repository;
+
+  #[test]
+  fn case1() {
+    let repo = Repository::from_local("github.com/hoge/fuga").unwrap();
+    assert!(repo.url.is_none());
+    assert_eq!(repo.host, "github.com");
+    assert_eq!(repo.path, "hoge/fuga");
+  }
+
+  #[test]
+  fn case2() {
+    let repo = Repository::from_local("gist.github.com/0bacdbefa19f").unwrap();
+    assert!(repo.url.is_none());
+    assert_eq!(repo.host, "gist.github.com");
+    assert_eq!(repo.path, "0bacdbefa19f");
   }
 }
 
