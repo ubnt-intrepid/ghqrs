@@ -24,13 +24,10 @@ pub struct Repository {
 
 impl Repository {
   pub fn from_local<P: AsRef<Path>>(path: P) -> Result<Repository, GhqError> {
-    // TODO use detected VCS
-    let _ = VCS::detect(path.as_ref());
-
-    let path = path.as_ref().to_string_lossy().into_owned();
+    let path = path.as_ref().to_string_lossy().replace("\\", "/");
     let splitted: Vec<_> = path.splitn(2, '/').collect();
     if splitted.len() < 2 {
-      return Err("").map_err(Into::into);
+      return Err("invalid path").map_err(Into::into);
     }
 
     let host = splitted[0].to_owned();
@@ -81,7 +78,12 @@ impl Repository {
   }
 
   pub fn local_path(&self, root: &str) -> PathBuf {
-    Path::new(root).join(&self.host).join(&self.path)
+    Path::new(&Path::new(root)
+        .join(&self.host)
+        .join(&self.path)
+        .to_string_lossy()
+        .replace("\\", "/"))
+      .to_path_buf()
   }
 
   pub fn clone_into(&self, root: &str) -> Result<(), GhqError> {

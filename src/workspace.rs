@@ -5,7 +5,7 @@ use walkdir::{DirEntry, WalkDir, WalkDirIterator};
 use config;
 use repository::*;
 use error::GhqError;
-
+use vcs::VCS;
 
 pub struct Workspace {
   config: config::Config,
@@ -22,6 +22,7 @@ impl Workspace {
         .into_iter()
         .filter_entry(|entry| !is_vcs_subdir(entry) && entry.path().is_dir())
         .filter_map(|entry| entry.ok())
+        .filter(|ref entry| VCS::detect(entry.path()).is_some())
         .filter_map(|ref entry| entry.path().strip_prefix(root).ok().map(|ref p| p.to_path_buf()))
         .filter_map(|ref path| Repository::from_local(path).ok())
         .collect();
