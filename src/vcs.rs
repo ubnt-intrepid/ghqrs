@@ -79,3 +79,10 @@ fn wait_exec(cmd: &str, args: &[&str], curr_dir: Option<&Path>) -> Result<i32, i
   child.wait()
     .and_then(|st| st.code().ok_or(io::Error::new(io::ErrorKind::Other, "")))
 }
+
+
+pub fn is_vcs_subdir(path: &Path) -> bool {
+  [".git", ".svn", ".hg", "_darcs"]
+    .into_iter()
+    .any(|vcs| path.join("..").join(vcs).exists())
+}

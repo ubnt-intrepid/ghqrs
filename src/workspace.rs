@@ -1,10 +1,11 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use walkdir::{DirEntry, WalkDir, WalkDirIterator};
+use walkdir::{WalkDir, WalkDirIterator};
 
 use config;
 use repository::*;
 use error::GhqError;
+use vcs;
 
 
 pub struct Workspace {
@@ -15,24 +16,25 @@ pub struct Workspace {
 impl Workspace {
   pub fn new(config: config::Config) -> Workspace {
     let mut repos = BTreeMap::new();
-
     for root in &config.roots {
-      let repo = WalkDir::new(&root)
-        .follow_links(true)
-        .into_iter()
-        .filter_entry(|entry| !is_vcs_subdir(entry))
-        .filter_map(|entry| entry.ok())
-        .filter(|ref entry| entry.path().is_dir())
-        .filter_map(|entry| relative_path(entry.path(), root).ok())
-        .filter_map(|path| Repository::from_local(&path).ok())
-        .collect();
-      repos.insert(root.to_owned(), repo);
+      repos.insert(root.to_owned(), Self::collect_local_repos(&root));
     }
 
     Workspace {
       config: config,
       repos: repos,
     }
+  }
+
+  fn collect_local_repos(root: &str) -> Vec<Repository> {
+    WalkDir::new(&root)
+      .follow_links(true)
+      .into_iter()
+      .filter_entry(|entry| is_vcs_root(entry.path()))
+      .filter_map(|entry| entry.ok())
+      .filter_map(|entry| relative_path(entry.path(), root).ok())
+      .filter_map(|path| Repository::from_local(&path).ok())
+      .collect()
   }
 
   pub fn show_roots(&self, all: bool) {
@@ -72,9 +74,6 @@ fn relative_path(path: &Path, root: &str) -> Result<PathBuf, GhqError> {
   Ok(path.strip_prefix(root)?.to_path_buf())
 }
 
-
-fn is_vcs_subdir(entry: &DirEntry) -> bool {
-  [".git", ".svn", ".hg", "_darcs"]
-    .into_iter()
-    .any(|vcs| entry.path().join("..").join(vcs).exists())
+fn is_vcs_root(path: &Path) -> bool {
+  path.is_dir() && !vcs::is_vcs_subdir(path)
 }
