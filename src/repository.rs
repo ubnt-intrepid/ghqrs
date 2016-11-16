@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use url::Url;
 use error::GhqError;
-use vcs;
+use vcs::VCS;
 
 
 #[allow(dead_code)]
@@ -17,13 +17,15 @@ const KNOWN_HOSTS: &'static [(&'static str, usize)] = &[
 #[derive(Debug)]
 pub struct Repository {
   url: Option<Url>,
+  vcs: VCS,
   host: String,
   path: String,
 }
 
 impl Repository {
   pub fn from_local(path: &Path) -> Result<Repository, GhqError> {
-    let _ = vcs::detect(path);
+    // TODO use detected VCS
+    let _ = VCS::detect(path);
 
     let path = path.to_string_lossy().into_owned();
     let splitted: Vec<_> = path.splitn(3, '/').collect();
@@ -36,6 +38,7 @@ impl Repository {
 
     Ok(Repository {
       url: None,
+      vcs: VCS::Git,
       host: host,
       path: path,
     })
@@ -49,6 +52,7 @@ impl Repository {
 
       Ok(Repository {
         url: Some(url),
+        vcs: VCS::Git,
         host: host,
         path: path,
       })
@@ -69,6 +73,7 @@ impl Repository {
 
       Ok(Repository {
         url: Some(url),
+        vcs: VCS::Git,
         host: host,
         path: path.join("/"),
       })
@@ -89,10 +94,10 @@ impl Repository {
       }
 
       println!("clone '{}' into '{}'", url.as_str(), dest.display());
-      vcs::Git::clone(url, dest.as_path(), None).map(|_| ()).map_err(Into::into)
-    } else {
-      Ok(())
+      self.vcs.clone_repository(url, dest.as_path())?;
     }
+
+    Ok(())
   }
 }
 

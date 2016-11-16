@@ -12,6 +12,20 @@ pub enum VCS {
   Darcs,
 }
 
+impl VCS {
+  pub fn detect<P: AsRef<Path>>(path: P) -> Option<VCS> {
+    vec![".git", ".svn", ".hg", "_darcs"]
+      .into_iter()
+      .find(|&vcs| path.as_ref().join(vcs).exists())
+      .map(|e| format!("{}", &e[1..]))
+      .and_then(|s| s.parse().ok())
+  }
+
+  pub fn clone_repository(&self, url: &Url, dest: &Path) -> io::Result<()> {
+    git::clone(url, dest, None).map(|_| ())
+  }
+}
+
 impl FromStr for VCS {
   type Err = ();
 
@@ -26,17 +40,13 @@ impl FromStr for VCS {
   }
 }
 
-pub fn detect<P: AsRef<Path>>(path: P) -> Option<VCS> {
-  vec![".git", ".svn", ".hg", "_darcs"]
-    .into_iter()
-    .find(|&vcs| path.as_ref().join(vcs).exists())
-    .map(|e| format!("{}", &e[1..]))
-    .and_then(|s| s.parse().ok())
-}
 
-pub struct Git;
+mod git {
+  use url::Url;
+  use std::path::Path;
+  use std::io;
+  use super::wait_exec;
 
-impl Git {
   pub fn clone(url: &Url, dest: &Path, depth: Option<i32>) -> Result<i32, io::Error> {
     let depth = depth.map(|depth| format!("--depth={}", depth));
     let mut args = vec!["clone", url.as_str(), dest.to_str().unwrap()];
