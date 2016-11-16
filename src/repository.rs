@@ -31,6 +31,17 @@ impl Repository {
     }
 
     let host = splitted[0].to_owned();
+
+    // check depth
+    let path_depth = splitted[1].split("/").count();
+    let host_depth = match host.as_str() {
+      "gist.github.com" => 1,
+      _ => 2, // github.com, bitbucket.org, gitlab.com, ...
+    };
+    if path_depth != host_depth {
+      Err("wrong depth in path")?;
+    }
+
     let path = Vec::from(&splitted[1..]).join("/");
 
     Ok(Repository {

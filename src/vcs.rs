@@ -13,6 +13,7 @@ pub enum VCS {
 }
 
 impl VCS {
+  #[allow(dead_code)]
   pub fn detect<P: AsRef<Path>>(path: P) -> Option<VCS> {
     vec![".git", ".svn", ".hg", "_darcs"]
       .into_iter()

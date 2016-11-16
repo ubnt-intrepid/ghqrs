@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, WalkDir, WalkDirIterator};
 
 use config;
 use repository::*;
 use error::GhqError;
-use vcs::VCS;
+
 
 pub struct Workspace {
   config: config::Config,
@@ -20,11 +20,11 @@ impl Workspace {
       let repo = WalkDir::new(&root)
         .follow_links(true)
         .into_iter()
-        .filter_entry(|entry| !is_vcs_subdir(entry) && entry.path().is_dir())
+        .filter_entry(|entry| !is_vcs_subdir(entry))
         .filter_map(|entry| entry.ok())
-        .filter(|ref entry| VCS::detect(entry.path()).is_some())
-        .filter_map(|ref entry| entry.path().strip_prefix(root).ok().map(|ref p| p.to_path_buf()))
-        .filter_map(|ref path| Repository::from_local(path).ok())
+        .filter(|ref entry| entry.path().is_dir())
+        .filter_map(|entry| relative_path(entry.path(), root).ok())
+        .filter_map(|path| Repository::from_local(&path).ok())
         .collect();
       repos.insert(root.to_owned(), repo);
     }
@@ -65,6 +65,13 @@ impl Workspace {
     Repository::from_remote(s)?.clone_into(root)
   }
 }
+
+
+// make relative path from `root`
+fn relative_path(path: &Path, root: &str) -> Result<PathBuf, GhqError> {
+  Ok(path.strip_prefix(root)?.to_path_buf())
+}
+
 
 fn is_vcs_subdir(entry: &DirEntry) -> bool {
   [".git", ".svn", ".hg", "_darcs"]
