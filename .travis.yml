@@ -4,6 +4,7 @@ sudo: false
 branches:
   only:
     - master
+    - /^v[0-9]/
 
 os:
   - linux
