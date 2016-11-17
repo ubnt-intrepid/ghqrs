@@ -35,11 +35,15 @@ impl Workspace {
       .collect()
   }
 
+  pub fn default_root(&self) -> Option<&Path> {
+    self.iter_roots().into_iter().next()
+  }
+
   // clone a remote repository into the workspace.
   pub fn clone_from(&self, s: &str, root: Option<&str>) -> Result<(), GhqError> {
     // get the path of root directory
     let root = root.map(Path::new)
-      .or(self.iter_roots().into_iter().next())
+      .or(self.default_root())
       .unwrap_or(Path::new(""));
 
     if !Path::new(&root).exists() {

@@ -51,7 +51,7 @@ fn _main() -> Result<i32, GhqError> {
           println!("{}", root.display());
         }
       } else {
-        if let Some(root) = workspace.iter_roots().into_iter().next() {
+        if let Some(root) = workspace.default_root() {
           println!("{}", root.display());
         }
       }
