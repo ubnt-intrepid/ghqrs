@@ -97,9 +97,9 @@ impl Repository {
       .to_path_buf()
   }
 
-  pub fn clone_into(&self, root: &str) -> Result<(), GhqError> {
+  pub fn clone_into<P: AsRef<Path>>(&self, root: P) -> Result<(), GhqError> {
     if let Some(ref url) = self.url {
-      let dest = Path::new(root).join(&self.host).join(&self.path);
+      let dest = root.as_ref().join(&self.host).join(&self.path);
 
       if dest.exists() {
         println!("The target has already existed: {}", dest.display());
