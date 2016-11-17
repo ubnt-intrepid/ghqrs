@@ -31,7 +31,7 @@ impl Workspace {
     self.repos.iter().next().map(|root| root.0.as_path())
   }
 
-  pub fn filter_repos<F, T>(&self, f: F) -> Vec<T>
+  pub fn map_repo<F, T>(&self, f: F) -> Vec<T>
     where F: Fn(&Repository, &Path) -> T
   {
     let f = &f;

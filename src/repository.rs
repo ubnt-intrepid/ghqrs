@@ -88,13 +88,11 @@ impl Repository {
     }
   }
 
-  pub fn local_path(&self, root: &str) -> PathBuf {
-    Path::new(&Path::new(root)
-        .join(&self.host)
-        .join(&self.path)
-        .to_string_lossy()
-        .replace("\\", "/"))
-      .to_path_buf()
+  pub fn local_path<P: AsRef<Path>>(&self, root: P) -> PathBuf {
+    root.as_ref()
+      .join(&self.host)
+      .join(&self.path)
+      .to_owned()
   }
 
   pub fn clone_into<P: AsRef<Path>>(&self, root: P) -> Result<(), GhqError> {

@@ -12,7 +12,6 @@ mod repository;
 mod vcs;
 mod workspace;
 
-use std::borrow::Borrow;
 use std::io::{self, Write};
 use clap::{Arg, App, AppSettings, SubCommand};
 use config::Config;
@@ -40,9 +39,9 @@ fn _main() -> Result<i32, GhqError> {
       }
     }
     ("list", Some(_)) => {
-      workspace.filter_repos(|repo, root| {
-        println!("{}",
-                 repo.local_path(root.to_string_lossy().borrow()).display());
+      workspace.map_repo(|repo, root| {
+        let repo_path = repo.local_path(root).to_string_lossy().replace("\\", "/");
+        println!("{}", repo_path);
       });
     }
     ("root", Some(m)) => {
