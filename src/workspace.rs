@@ -1,3 +1,4 @@
+use std::fs;
 use std::path::{Path, PathBuf};
 use walkdir::{WalkDir, WalkDirIterator};
 
@@ -22,33 +23,31 @@ impl Workspace {
     Workspace { repos: repos }
   }
 
-  pub fn iter_roots(&self) -> Vec<&Path> {
+  pub fn roots(&self) -> Vec<&Path> {
     self.repos.iter().map(|root| root.0.as_path()).collect()
+  }
+
+  pub fn default_root(&self) -> Option<&Path> {
+    self.repos.iter().next().map(|root| root.0.as_path())
   }
 
   pub fn filter_repos<F, T>(&self, f: F) -> Vec<T>
     where F: Fn(&Repository, &Path) -> T
   {
+    let f = &f;
     self.repos
       .iter()
-      .flat_map(|repo| repo.1.iter().map(|r| f(r, &repo.0)).collect::<Vec<_>>())
+      .flat_map(|&(ref root, ref repos)| repos.iter().map(move |r| f(r, root)))
       .collect()
   }
 
-  pub fn default_root(&self) -> Option<&Path> {
-    self.iter_roots().into_iter().next()
-  }
-
   // clone a remote repository into the workspace.
-  pub fn clone_from(&self, s: &str, root: Option<&str>) -> Result<(), GhqError> {
-    // get the path of root directory
-    let root = root.map(Path::new)
-      .or(self.default_root())
-      .unwrap_or(Path::new(""));
-
-    if !Path::new(&root).exists() {
-      println!("The root directory does not exist: {}", root.display());
-      return Ok(());
+  pub fn clone_from(&self, s: &str) -> Result<(), GhqError> {
+    // get root directory
+    let root = self.default_root()
+      .ok_or("Cannot get root directory of the workspace")?;
+    if !root.exists() {
+      fs::create_dir_all(root)?;
     }
 
     Repository::from_remote(s)?.clone_into(&root)

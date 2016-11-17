@@ -36,7 +36,7 @@ fn _main() -> Result<i32, GhqError> {
     ("clone", Some(m)) => {
       let queries = m.values_of("query").unwrap();
       for ref s in queries {
-        workspace.clone_from(s, None)?;
+        workspace.clone_from(s)?;
       }
     }
     ("list", Some(_)) => {
@@ -47,7 +47,7 @@ fn _main() -> Result<i32, GhqError> {
     }
     ("root", Some(m)) => {
       if m.is_present("all") {
-        for root in workspace.iter_roots() {
+        for root in workspace.roots() {
           println!("{}", root.display());
         }
       } else {
