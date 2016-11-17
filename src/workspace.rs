@@ -30,7 +30,7 @@ impl Workspace {
     WalkDir::new(&root)
       .follow_links(true)
       .into_iter()
-      .filter_entry(|entry| is_vcs_root(entry.path()))
+      .filter_entry(|entry| !is_vcs_component(entry.path()))
       .filter_map(|entry| entry.ok())
       .filter_map(|entry| relative_path(entry.path(), root).ok())
       .filter_map(|path| Repository::from_local(&path).ok())
@@ -74,6 +74,11 @@ fn relative_path(path: &Path, root: &str) -> Result<PathBuf, GhqError> {
   Ok(path.strip_prefix(root)?.to_path_buf())
 }
 
-fn is_vcs_root(path: &Path) -> bool {
-  path.is_dir() && !vcs::is_vcs_subdir(path)
+
+fn is_vcs_component(path: &Path) -> bool {
+  if let Some(path) = path.parent() {
+    [".git", ".svn", ".hg", "_dacrs"].into_iter().any(|v| vcs::is_vcs_subdir(&path.join(v)))
+  } else {
+    false
+  }
 }
