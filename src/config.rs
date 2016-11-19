@@ -1,9 +1,10 @@
 use std::borrow::Cow;
+use std::env::VarError;
 use std::fs::File;
 use std::io::{self, Read};
-use std::path::Path;
+use std::path::PathBuf;
 use toml;
-use shellexpand;
+use shellexpand::{self, LookupError};
 
 
 #[cfg_attr(rustfmt, rustfmt_skip)]
@@ -27,13 +28,11 @@ impl Default for Config {
 
 impl Config {
   pub fn load() -> io::Result<Config> {
-    let mut config: Config = read_file_if_exists(CANDIDATES)
-      ?
-      .and_then(|ref content| toml::decode_str(content))
-      .unwrap_or_default();
+    let content = read_file_if_exists(CANDIDATES)?;
+    let mut config: Config = content.and_then(|s| toml::decode_str(&s)).unwrap_or_default();
 
     for i in 0..(config.roots.len()) {
-      config.roots[i] = shellexpand::full(&config.roots[i]).map(Cow::into_owned).unwrap();
+      config.roots[i] = expand_full(&config.roots[i]).unwrap();
     }
 
     Ok(config)
@@ -41,19 +40,25 @@ impl Config {
 }
 
 
-// Read the content of a file in `paths`
-fn read_file_if_exists(paths: &[&str]) -> Result<Option<String>, io::Error> {
-  for path in paths {
-    // expand the candidate of path.
-    let path = shellexpand::full(path).unwrap().into_owned();
-    let path = Path::new(&path);
+fn expand_full(s: &str) -> Result<String, LookupError<VarError>> {
+  shellexpand::full(s).map(Cow::into_owned)
+}
 
-    if path.exists() && path.is_file() {
+
+// Read the content of a file in `paths`
+fn read_file_if_exists(paths: &[&str]) -> io::Result<Option<String>> {
+  let path = paths.iter()
+    .map(|s| expand_full(s).unwrap())
+    .map(PathBuf::from)
+    .filter(|ref p| p.is_file())
+    .next();
+
+  match path {
+    Some(path) => {
       let mut content = String::new();
-      return File::open(path)
-        .and_then(|ref mut file| file.read_to_string(&mut content))
-        .and(Ok(Some(content)));
+      File::open(path)?.read_to_string(&mut content)?;
+      Ok(Some(content))
     }
+    None => Ok(None),
   }
-  Ok(None)
 }
