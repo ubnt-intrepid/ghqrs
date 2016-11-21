@@ -2,7 +2,7 @@
 
 `ghq.rs` is a CLI tools to manage cloned repositories from Git hostings, written in Rust.
 
-## Synposis (work in progress)
+## Synopsis (work in progress)
 
 ```
 ghqrs 0.1.1
