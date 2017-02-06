@@ -1,23 +1,11 @@
+extern crate ghqrs;
 extern crate clap;
-extern crate regex;
-extern crate rustc_serialize;
-extern crate shellexpand;
-extern crate toml;
-extern crate url;
-extern crate walkdir;
-
-mod config;
-mod error;
-mod repository;
-mod vcs;
-mod workspace;
 
 use std::io::{self, Write};
 use clap::{Arg, App, AppSettings, SubCommand};
-use config::Config;
-use workspace::Workspace;
-use error::GhqError;
-
+use ghqrs::config::Config;
+use ghqrs::workspace::Workspace;
+use ghqrs::error::GhqError;
 
 fn main() {
   match _main() {
