@@ -2,7 +2,7 @@ extern crate ghqrs;
 
 use std::env;
 use std::io::{self, Write};
-use ghqrs::vcs_info::vcs;
+use ghqrs::vcs_info;
 
 fn main() {
   // ensure that all outputs are English.
@@ -11,7 +11,7 @@ fn main() {
 
   let fallback = env::args().skip(1).next().map(|s| s.trim() == "--fallback").unwrap_or(false);
 
-  match vcs::current_status(&env::current_dir().unwrap()) {
+  match vcs_info::current_status(&env::current_dir().unwrap()) {
     Ok(Some(s)) => io::stdout().write_all(s.prompt(fallback).as_bytes()).unwrap(),
     _ => (),
   }
