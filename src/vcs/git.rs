@@ -1,9 +1,12 @@
 use std::env;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 use regex::Regex;
-use super::Prompt;
-use vcs_info::util::*;
+use url::Url;
+
+use vcs::Prompt;
+use util::*;
 
 #[derive(Default)]
 pub struct Status {
@@ -306,4 +309,19 @@ impl Prompt for Status {
 
     ret
   }
+}
+
+pub fn clone(url: &Url, dest: &Path, depth: Option<i32>) -> Result<i32, io::Error> {
+  let depth = depth.map(|depth| format!("--depth={}", depth));
+  let mut args = vec!["clone", url.as_str(), dest.to_str().unwrap()];
+  if let Some(ref depth) = depth {
+    args.push(&depth);
+  }
+
+  wait_exec("git", args.as_slice(), None)
+}
+
+#[allow(dead_code)]
+pub fn update(dest: &Path) -> Result<i32, io::Error> {
+  wait_exec("git", &["pull", "--ff-only"], Some(dest))
 }

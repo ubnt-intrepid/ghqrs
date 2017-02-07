@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::{self, Read};
 use std::path::Path;
+use std::process::{Command, Stdio};
 
 pub trait SplitEOL {
   fn split_eol(&self) -> Vec<String>;
@@ -43,4 +44,19 @@ pub fn read_content<P: AsRef<Path>>(path: P) -> io::Result<String> {
   File::open(path)
     .and_then(|mut f| f.read_to_string(&mut buf))
     .and(Ok(buf.trim().to_owned()))
+}
+
+pub fn wait_exec(cmd: &str, args: &[&str], curr_dir: Option<&Path>) -> Result<i32, io::Error> {
+  let mut command = Command::new(cmd);
+  command.args(args)
+    .stdin(Stdio::inherit())
+    .stdout(Stdio::inherit())
+    .stderr(Stdio::inherit());
+  if let Some(curr_dir) = curr_dir {
+    command.current_dir(curr_dir);
+  }
+
+  let mut child = command.spawn()?;
+  child.wait()
+    .and_then(|st| st.code().ok_or(io::Error::new(io::ErrorKind::Other, "")))
 }

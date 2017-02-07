@@ -11,6 +11,4 @@ pub mod error;
 pub mod repository;
 pub mod vcs;
 pub mod workspace;
-
-// import from vcs_info.rs
-pub mod vcs_info;
+pub mod util;

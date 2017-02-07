@@ -1,9 +1,9 @@
 // original implementation: https://github.com/JeremySkinner/posh-hg
 
 use std::io;
-use super::Prompt;
-use vcs_info::util::*;
 use regex::Regex;
+use vcs::Prompt;
+use util::*;
 
 #[derive(Default)]
 pub struct Status {

@@ -1,11 +1,11 @@
-extern crate ghqrs;
+extern crate ghq;
 extern crate clap;
 
 use std::io::{self, Write};
 use clap::{Arg, App, AppSettings, SubCommand};
-use ghqrs::config::Config;
-use ghqrs::workspace::Workspace;
-use ghqrs::error::GhqError;
+use ghq::config::Config;
+use ghq::workspace::Workspace;
+use ghq::error::GhqError;
 
 fn main() {
   match _main() {

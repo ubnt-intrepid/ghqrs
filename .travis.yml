@@ -22,7 +22,7 @@ before_install:
 
 install:
   - curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable
-  - export PATH=~/.cargo/bin:$PATH
+  - export PATH=$HOME/.cargo/bin:$PATH
   - if ! [[ $TRAVIS_OS_NAME == "osx" && $ARCH == "x86_64" ]]; then rustup target add ${HOST}; fi
 
 script:

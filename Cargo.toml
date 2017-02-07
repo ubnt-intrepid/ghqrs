@@ -4,6 +4,10 @@ version = "0.1.2"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 description = "Manages cloned repositories from Git hostings"
 
+[lib]
+name = "ghq"
+path = "src/lib.rs"
+
 [dependencies]
 clap = "^2.13.0"
 walkdir = "^0.1.8"

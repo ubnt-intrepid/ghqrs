@@ -1,6 +1,6 @@
-use super::Prompt;
 use std::io;
-use vcs_info::util::*;
+use vcs::Prompt;
+use util::*;
 
 #[derive(Default)]
 struct Diff {
